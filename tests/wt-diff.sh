@@ -6,6 +6,25 @@ TMP=$(mktemp -d)
 trap 'rm -rf -- "$TMP"' EXIT
 shopt -s nullglob
 
+# Exercise the real deployment guards in a disposable clone and home only.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+git clone -q --shared -- "$ROOT" "$TMP/repo"
+for path in Makefile scripts/prepare-stow.sh scripts/wt-diff.sh windows-terminal/settings.json; do
+  cp -- "$ROOT/$path" "$TMP/repo/$path"
+done
+SOURCE_ROOT=$ROOT
+ROOT="$TMP/repo"
+export HOME="$TMP/home" PREPARE_STOW_KERNEL_RELEASE=6.6.0-microsoft-standard-WSL2
+mkdir "$HOME"
+export PREPARE_STOW_INTEROP_ROOT="$TMP/interop"
+mkdir -p "$PREPARE_STOW_INTEROP_ROOT" "$TMP/interop-bin"
+printf 'enabled\n' >"$PREPARE_STOW_INTEROP_ROOT/status"
+printf 'enabled\n' >"$PREPARE_STOW_INTEROP_ROOT/WSLInterop"
+printf '#!/bin/bash\nexit 0\n' >"$TMP/interop-bin/powershell.exe"
+printf '#!/bin/bash\nexit 99\n' >"$TMP/interop-bin/clip.exe"
+chmod +x "$TMP/interop-bin/"*.exe
+export PATH="$TMP/interop-bin:$PATH"
+
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
   exit 1
@@ -15,6 +34,18 @@ deployed="$TMP/settings.json"
 original="$TMP/original.json"
 printf '{"profiles":{"defaults":{}},"schemes":[]}\n' >"$deployed"
 cp -- "$deployed" "$original"
+
+if WT_SETTINGS="$deployed" "$SOURCE_ROOT/scripts/wt-diff.sh" --push >"$TMP/wrong-clone.out" 2>&1; then
+  fail "direct push from the real clone accepted fixture host overrides"
+fi
+cmp -s "$original" "$deployed" || fail "guard refusal changed the destination"
+mkdir -p "$HOME/.config"
+ln -s "$SOURCE_ROOT/bash/.bashrc" "$HOME/.bashrc"
+if WT_SETTINGS="$deployed" "$ROOT/scripts/wt-diff.sh" --push >"$TMP/foreign.out" 2>&1; then
+  fail "direct push accepted a foreign deployed clone"
+fi
+cmp -s "$original" "$deployed" || fail "clone guard refusal changed the destination"
+rm "$HOME/.bashrc"
 
 WT_SETTINGS="$deployed" "$ROOT/scripts/wt-diff.sh" --push >/dev/null
 cmp -s "$ROOT/windows-terminal/settings.json" "$deployed" || fail "push did not deploy tracked settings"

@@ -20,6 +20,10 @@ mode=${1:-diff}
 (( $# <= 1 )) || abort "usage: scripts/wt-diff.sh [--push]"
 [[ $mode == diff || $mode == --push ]] || abort "usage: scripts/wt-diff.sh [--push]"
 
+if [[ $mode == --push ]]; then
+  make --no-print-directory -C "$repo_root" require-clone || abort 'host or deployed-clone guard refused the push'
+fi
+
 deployed="${WT_SETTINGS:-}"
 if [[ -z "${deployed}" ]]; then
   command -v powershell.exe >/dev/null 2>&1 || abort "powershell.exe is required to locate Windows Terminal settings"

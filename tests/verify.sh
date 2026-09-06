@@ -116,7 +116,7 @@ printf '{}\n' >"$TMP/bad-lock/repo/nvim/.config/nvim/lazy-lock.json"
 expect_failure "incomplete LazyVim lock" run_verify "$TMP/bad-lock" repo
 
 clone_baseline wrapper-not-executable
-chmod -x "$TMP/wrapper-not-executable/repo/mise/.local/bin/claude"
+chmod a-x "$TMP/wrapper-not-executable/repo/mise/.local/bin/claude"
 expect_failure "non-executable mise wrapper" run_verify "$TMP/wrapper-not-executable" repo
 
 clone_baseline wrapper-wrong-tool

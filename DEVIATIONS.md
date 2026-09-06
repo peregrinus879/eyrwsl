@@ -54,7 +54,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 
 ### Environment Target
 
-- Arch Linux inside WSL, not a full Omarchy desktop.
+- Arch Linux inside WSL2 with active Windows interop, not WSL1 or a full Omarchy desktop.
 - Desktop services, GUI launchers, display manager integration, and Hyprland-specific behavior are intentionally excluded.
 - Nerd Font rendering is a Windows-side concern. Windows Terminal uses the Windows-installed JetBrainsMono Nerd Font; WSL needs no Linux font package.
 
@@ -62,7 +62,8 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 
 - GNU Stow with symlinked package ownership replaces Omarchy's file-copy and package-install model.
 - `make clean` derives the owned paths from the package files, classifies every one before changing anything, and removes only folded directory links left by a folding deployment and dangling links from a moved or deleted clone; live leaf links stay for Stow. Regular files, foreign links, and special files at owned paths abort untouched.
-- `make verify` fails closed on the WSL2/interoperability host contract, command baseline, the AI tools installed by and resolving through a paranoid-mode mise, deployed package ownership with real managed parents, a GitHub no-reply Git identity, and owned config parsers and runtimes before running the fixture suites; `make check` runs the parser, runtime, and fixture parts anywhere.
+- Every host-writing Make target checks host and deployed-clone ownership before mutation; direct `scripts/wt-diff.sh --push` does so before destination discovery. The host guard requires WSL2, enabled `binfmt_misc`, an enabled `WSLInterop` or `WSLInterop-late` handler, resolving `clip.exe`/`powershell.exe`, and a successful five-second, no-profile PowerShell probe. `.NOTPARALLEL` serializes one Make invocation, not independent deployments or disk failures. Complete cleanup preflight is preservation-safe refusal, not a rollback transaction.
+- `make verify` first checks the active WSL2/interoperability host contract, then runs `lint`, `check`, and `twins`, followed by the full verifier's command baseline, AI tools installed by and resolving through a paranoid-mode mise, deployed package ownership with real managed parents, GitHub no-reply Git identity, and owned config parsers and runtimes. `make check` runs the parser, runtime, and fixture parts anywhere.
 - Stow runs with `--no-folding`, so every managed parent stays a real directory that tools may write into and only leaf files are links.
 - `/omasync` owns reference-clone maintenance and upstream comparison; `docs/maintenance.md` owns unresolved decisions, deferred work, active limitations, and dated evidence.
 - Agent-tool verification approvals are handled by session or shared EyrAgents policy rather than repo-root project allowlists.

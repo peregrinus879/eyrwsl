@@ -24,6 +24,9 @@ TWIN_SPECS := nvim/.config/nvim/lua/plugins/obsidian.lua \
 
 .PHONY: help require-host require-clone stow unstow dry-run restow lint check twins verify test clean refs wt-diff wt-push
 
+# Deployment goals and their guards must never race, including `make -j clean restow`.
+.NOTPARALLEL:
+
 help:
 	@echo "Targets:"
 	@echo "  stow      Stow all packages into ~"
@@ -44,30 +47,21 @@ help:
 # must resolve into this clone so a reference clone never redeploys the
 # packages from itself.
 require-host:
-	@kernel="$$(uname -r)"; [[ "$${kernel,,}" == *microsoft* ]] || { echo "FAIL: the WSL host is required for this target"; exit 1; }
+	@bash scripts/prepare-stow.sh --require-host
 
-require-clone:
-	@fail=0; \
-	while IFS= read -r -d '' src; do \
-	  target="$$HOME/$${src#*/}"; \
-	  [[ -L $$target ]] || continue; \
-	  case $$(readlink -f -- "$$target") in \
-	    "$(CURDIR)"/*) ;; \
-	    *) echo "FAIL: $$target is linked from another clone; run make stow from the deployed clone"; fail=1 ;; \
-	  esac; \
-	done < <(git ls-files -z --cached --others --exclude-standard -- $(PACKAGES)); \
-	exit $$fail
+require-clone: require-host
+	@EYRWSL_PACKAGES='$(PACKAGES)' bash scripts/prepare-stow.sh --require-clone
 
-stow: require-host
+stow: require-clone
 	$(STOW) -v $(PACKAGES)
 
-unstow: require-host
+unstow: require-clone
 	$(STOW) -D -v $(PACKAGES)
 
 dry-run:
 	$(STOW) -n -v $(PACKAGES)
 
-restow: require-host require-clone
+restow: require-clone
 	$(STOW) -R -v $(PACKAGES)
 
 lint:
@@ -105,7 +99,7 @@ verify: require-host lint check twins
 test:
 	@set -e; for test in tests/*.sh; do EYRWSL_PACKAGES='$(PACKAGES)' bash "$$test"; done
 
-clean: require-host
+clean: require-clone
 	@EYRWSL_PACKAGES='$(PACKAGES)' bash scripts/prepare-stow.sh
 
 # omasync step 1. Clones what references.txt lists and the quarry lacks,
@@ -117,5 +111,5 @@ refs:
 wt-diff:
 	scripts/wt-diff.sh
 
-wt-push: require-host
+wt-push: require-clone
 	scripts/wt-diff.sh --push

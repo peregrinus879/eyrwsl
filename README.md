@@ -205,7 +205,7 @@ curl -fsSL https://herdr.dev/install.sh | sh
 
 Package ownership is Pacman-first. Before future reinstalls, recheck the official repositories; if `herdr` becomes packaged, replace the standalone installation with the official package.
 
-Claude Code, Codex, and OpenCode are not installed in this step. The `mise/` package stows one wrapper per tool into `~/.local/bin`, and each wrapper installs its tool through mise the first time it runs (section 10). A host that installed Codex and OpenCode from Pacman or Claude Code with its native installer removes those first, or `make clean` reports the leftover launcher at the owned path: `sudo pacman -Rns openai-codex opencode`, then `rm -f ~/.local/bin/claude` and `rm -rf ~/.local/share/claude` as the Claude Code uninstall documents (settings and credentials under `~/.claude` stay). Authentication and subscriptions are separate from installation; complete interactive sign-in only after the shell configuration is stowed.
+Claude Code, Codex, and OpenCode are not installed in this step. The `mise/` package stows one wrapper per tool into `~/.local/bin`, and each wrapper installs its tool through mise the first time it runs (section 10). On an existing installation, identify each executable and its package ownership before proposing changes. Preserve a specifically reviewed conflicting launcher under an unused backup name if needed; keep versions stores until the replacement works. No blanket package removal, native-install deletion, or auth/config cleanup is a prerequisite. Authentication and subscriptions are separate from installation; complete interactive sign-in only after the shell configuration is stowed.
 
 ### 5. Clone
 
@@ -248,20 +248,24 @@ Checklist before stowing:
 - `~/.config/git/config.local` exists with your local Git identity
 - Any existing conflicting files were reviewed and moved or merged
 
-Run the guarded preparation from the repository root:
+Preview and run the guarded preparation from the intended normal-user clone:
 
 ```bash
 cd ~/Projects/eyrie/eyrwsl
+make dry-run
 make clean
+make dry-run
 ```
 
 Preparation derives the owned paths from the package files and checks every one before changing anything. It removes only folded directory links left by a folding deployment and dangling links left by a moved or deleted clone; live leaf links stay for Stow to manage. A regular file, a foreign or unrecognized link, or a special file at an owned path aborts the entire run without partial removal. Compare and move or merge the reported conflict, then rerun `make clean`.
+
+Preparation requires WSL2 with active Windows interop: enabled `binfmt_misc`, an enabled `WSLInterop` or `WSLInterop-late` handler, `clip.exe` and `powershell.exe` on PATH, and a successful five-second no-profile PowerShell probe. Configuration intent in `wsl.conf` is not enough. Every host-writing target checks the deployed clone and managed parents before mutation; `make clean` is a guarded mutation, not a force/adopt operation.
 
 A fresh Arch user normally has a regular `~/.bashrc` from `/etc/skel`, so expect the first preparation run to report it. Compare any needed local content, move or merge it deliberately, and rerun `make clean`; the script never replaces it automatically.
 
 ### 9. Stow
 
-Link every package (the Makefile owns the package list):
+Link every package as the normal user from the intended clone, not through `sudo` (the Makefile owns the package list):
 
 ```bash
 cd ~/Projects/eyrie/eyrwsl
@@ -295,7 +299,7 @@ cd ~/Projects/eyrie/eyrwsl
 make restow
 ```
 
-To migrate from a different clone path, unstow from the old location first:
+To migrate from a different clone path, inspect both working trees and preserve dirty/untracked work. Unstow from the clone that currently owns the deployed links before stowing the new one:
 
 ```bash
 make -C /old/clone/path unstow
@@ -329,32 +333,36 @@ Authentication failures do not indicate a dotfile deployment failure; resolve ac
 
 ### 11. Windows Terminal
 
-Launch Windows Terminal once so its settings file exists, then complete the required automated deployment step from WSL:
+Launch Windows Terminal once so its settings file exists, then review `make wt-diff` and the complete tracked replacement. The helper replaces the full file, including unrelated profiles or settings, so obtain explicit approval before `make wt-push`:
 
 ```bash
 cd ~/Projects/eyrie/eyrwsl
+make wt-diff
+# Only after reviewing and approving the full-file replacement:
 make wt-push
 make wt-diff
 ```
 
 `make wt-push` resolves the active Windows account through PowerShell and validates both JSON files. If they already match, it exits without writing anything. If they differ, it creates a timestamped `settings.json.backup-<timestamp>` beside the deployed file and atomically replaces the deployment with the tracked file. The following `make wt-diff` confirms there is no normalized drift after Windows Terminal's key-order rewrites.
 
+Both `make wt-push` and direct `scripts/wt-diff.sh --push` require the active WSL2/interop and deployed-clone guards before destination discovery. A path override does not bypass those checks.
+
 To roll back, copy the reported backup over the deployed `settings.json`. Delete obsolete backups manually after confirming the replacement is stable. Set `WT_SETTINGS` only when Windows Terminal uses a nonstandard settings path.
 
-If automatic discovery is unavailable, open Windows Terminal settings JSON with `Ctrl+Shift+,` and replace its contents with the full tracked `windows-terminal/settings.json`. The deployed file normally lives at:
+If automatic discovery is unavailable, open Windows Terminal settings JSON with `Ctrl+Shift+,`, preserve an exact backup, and review and approve the full tracked replacement before applying it manually. The deployed file normally lives at:
 
 ```text
 %LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json
 ```
 
-After deployment, confirm the default profile resolves to `archlinux` and the font is JetBrainsMono Nerd Font at size 9. If Windows Terminal warns about a missing default profile, re-select it once in the settings UI. Settings UI saves can serialize the generated `archlinux` profile into the deployed file; run `make wt-diff`, then `make wt-push` to restore the tracked canonical form when it reports drift.
+After deployment, confirm the default profile resolves to `archlinux` and the font is JetBrainsMono Nerd Font at size 9. If Windows Terminal warns about a missing default profile, re-select it once in the settings UI. Settings UI saves can serialize the generated `archlinux` profile into the deployed file; review any reported drift with `make wt-diff` before approving another full-file push.
 
 ## Verify
 
 After stowing or changing owned packages:
 
 - Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, tmux, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures), and GitHub Actions runs them on every push to `main` and every pull request, plus `make twins` against a fresh EyrArcHy clone.
-- Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: `lint`, `check`, and `twins`, then `scripts/verify.sh` in `full` mode (WSL2 kernel and Windows interop, the command baseline, the three AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
+- Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: the active WSL2/interop host guard first, then `lint`, `check`, and `twins`, followed by `scripts/verify.sh` in `full` mode (command baseline, the three AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
 
 Complete these manual fresh-session checks:
 
@@ -376,6 +384,7 @@ Complete these manual fresh-session checks:
 
 - **WSL or Arch does not start**: Confirm hardware virtualization is enabled in UEFI, run `wsl --update` from elevated PowerShell, and repeat `wsl --status` and `wsl --list --verbose`. Do not continue until `archlinux` launches under WSL2.
 - **Preparation reports a conflict**: Compare the reported path, move or merge any needed content, then rerun `make clean`. The script never deletes regular files, foreign links, or special files; the only dangling links it removes name a package path of this repo.
+- **Host or clone guard refuses**: Confirm actual WSL2/interop and executable availability, not only `wsl.conf`. Run deployment from the clone owning the current links; preserve local edits before changing clone locations. Do not use fixture overrides or a force/adopt operation on the live home.
 - **Neovim clipboard not working**: Confirm `clip.exe` and `powershell.exe` are accessible from WSL (`which clip.exe`). If Windows interop is disabled, check `[interop]` in `/etc/wsl.conf`.
 - **Obsidian image paste unavailable**: `:Obsidian paste_img` expects `wl-clipboard` or `xclip`, which this WSL baseline does not install. Save the image through Windows or the vault's own workflow, then link or embed it from the note.
 - **mise refuses a project config**: Paranoid mode is on. Review the file, then `mise trust` it; an edit to a trusted file prompts again.
@@ -386,6 +395,8 @@ Complete these manual fresh-session checks:
 
 A repo-root `Makefile` keeps the package list in one place and wraps the routine commands. `stow`, `restow`, `clean`, `verify`, and `wt-push` run on the WSL machine; `lint`, `check`, `twins`, and `refs` run anywhere:
 
+Every host-writing Make target checks host and deployed-clone ownership before mutation. Deployment goals are serialized within one Make invocation, including `make -j`; this is not rollback against I/O failure or independent concurrent deployments.
+
 - `make stow` / `make unstow` / `make dry-run` / `make restow` - the stow command sets over the package list, without directory folding
 - `make lint` - ShellCheck over the bash package, `scripts/`, and `tests/`; `.shellcheckrc` disables the upstream-derived warnings so new issues stand out
 - `make check` - repository-only checks: `scripts/verify.sh` in `repo` mode over every owned config, then every fixture suite (runs in CI)
@@ -395,7 +406,7 @@ A repo-root `Makefile` keeps the package list in one place and wraps the routine
 - `make clean` - WSL-only guarded stow preparation (`scripts/prepare-stow.sh`); leftover folded links and dangling clone links only, aborts before removing anything otherwise
 - `make refs` - clone, fast-forward, and prune the reference clones under `~/Projects/quarry` to the family's `references.txt` files, repointing moved GitHub remotes (`/omasync` step 1)
 - `make wt-diff` - diff the tracked Windows Terminal settings against the deployed Windows-side file (normalized with `jq`, since Windows Terminal rewrites key order)
-- `make wt-push` - WSL-only, validate both settings files, back up a changed deployment, and atomically deploy the tracked file
+- `make wt-push` - after full-file review/approval, require active WSL2/interop and deployed-clone ownership, validate both settings files, back up a changed deployment, and atomically deploy the tracked file; direct `scripts/wt-diff.sh --push` has the same guard
 
 `.github/workflows/test.yml` runs `make lint`, `make check`, and `make twins` on every push to `main` and every pull request.
 
