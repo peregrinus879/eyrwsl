@@ -142,7 +142,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - Paranoid mode is on through the stowed `~/.config/mise/conf.d/eyrwsl.toml`. Omarchy runs mise with default trust and trusts `~/Work/.mise.toml` and every worktree automatically; here global configs stay implicitly trusted and every project-level config needs an explicit `mise trust`, prompted again when the file changes.
 - `mise` comes from the official `extra` repository instead of Omarchy's `mise-bin` package.
 - Only the three AI tools go through mise. Omarchy's other mise-managed tools are omitted: the wrappers for `gh`, `crush`, `gemini`, `copilot`, `playwright`, `pi`, `omp`, `grok`, `ghui`, and `hunk` at the pin (`agy` replacing `gemini`, `hey`, `ori`, and Hermes since), the global Node runtime, and the language runtimes `omarchy-install-dev-env` adds on request; `gh` comes from the official `github-cli` package.
-- Omarchy's `~/Work/.mise.toml` and global Node.js install (`mise-work.sh`) are omitted; the AI tools install as prebuilt binaries and need no runtime.
+- Omarchy's `~/Work/.mise.toml` and global Node.js install (`mise-work.sh`) are omitted; the AI tools install as prebuilt binaries and need no runtime. Node.js belongs to optional EyrAgents verification prerequisites, not EyrWSL's baseline.
 - `omarchy-update-mise` has no counterpart; `mup` is the update path, run by hand.
 
 ### OpenCode
@@ -176,7 +176,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 ### WSL Bootstrap
 
 - `/etc/wsl.conf` carries the default user and keeps Windows interop enabled, which the clipboard integration requires.
-- Windows-side installation of Windows Terminal, the Nerd Font, and Arch directly through `wsl --install -d archlinux` is documented in this repo's README; WSL2 and a root recovery password are setup gates.
+- The README separates Windows/PowerShell, Arch root bootstrap, and normal-user setup. It documents current stable WSL, official Arch `wsl --install archlinux` with a verified official-image fallback, Windows Terminal and Nerd Font installation, preserved `/etc/wsl.conf` sections, UTF-8 locale, no-reply Git identity, preview-first Stow, and preservation-first upgrades. Optional EyrAgents remains a separate deployment; live installation assumptions stay pending in the host-pass ledger.
 - The WSL baseline includes `inetutils` for the `hostname` host gate, `lua` for EyrWSL's fail-closed syntax verification, `tree-sitter-cli` for LazyVim, and `man-db`/`man-pages` for local documentation. The official `mise` package installs and updates the AI terminal tools through the stowed wrappers.
 - Yazi media helpers are optional official packages, not hidden baseline dependencies.
 
