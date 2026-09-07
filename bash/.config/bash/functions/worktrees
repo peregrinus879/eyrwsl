@@ -1,35 +1,67 @@
-# Create a new worktree and branch from within current git directory.
+# Create a branch/worktree beside the actual checkout root, even from a subdir.
 ga() {
-  if [[ -z "$1" ]]; then
-    echo "Usage: ga [branch name]"
-    return 1
-  fi
-
-  local branch="$1"
-  local base="$(basename "$PWD")"
-  local wt_path="../${base}--${branch}"
-
-  git worktree add -b "$branch" "$wt_path"
-  cd "$wt_path"
+  [[ $# == 1 && -n $1 && $1 != -* ]] || { echo 'Usage: ga <branch name>' >&2; return 1; }
+  local branch=$1 root wt_path
+  git check-ref-format "refs/heads/$branch" || return 1
+  # Preserve pathname newlines that command substitution would otherwise trim.
+  root=$(git rev-parse --show-toplevel && printf '.') || return 1
+  root=${root%$'\n.'}
+  wt_path="${root%/*}/${root##*/}--$branch"
+  git -C "$root" worktree add -b "$branch" -- "$wt_path" || return 1
+  builtin cd -- "$wt_path" || return 1
 }
 
-# Remove worktree and branch from within active worktree directory.
+# Remove only a real linked worktree and its actual branch, with Git's normal
+# dirty/locked/merge safeguards. Force, if wanted, is a separate manual review.
 gd() {
-  if gum confirm "Remove worktree and branch?"; then
-    local cwd base branch root worktree
-
-    cwd="$(pwd)"
-    worktree="$(basename "$cwd")"
-
-    # split on first `--`
-    root="${worktree%%--*}"
-    branch="${worktree#*--}"
-
-    # Protect against accidentally nuking a non-worktree directory
-    if [[ "$root" != "$worktree" ]]; then
-      cd "../$root"
-      git worktree remove "$cwd" --force || return 1
-      git branch -D "$branch"
-    fi
+  [[ $# == 0 ]] || { echo 'Usage: gd (inside a linked worktree)' >&2; return 1; }
+  local cwd root common git_dir main field path="" branch="" head="" current status
+  local -a records=()
+  cwd=$(pwd -P && printf '.') || return 1
+  cwd=${cwd%$'\n.'}
+  root=$(git rev-parse --show-toplevel && printf '.') || return 1
+  root=${root%$'\n.'}
+  common=$(git rev-parse --path-format=absolute --git-common-dir && printf '.') || return 1
+  common=${common%$'\n.'}
+  git_dir=$(git rev-parse --absolute-git-dir && printf '.') || return 1
+  git_dir=${git_dir%$'\n.'}
+  [[ $git_dir != "$common" ]] || { echo 'gd: not a linked worktree; nothing removed' >&2; return 1; }
+  # The sentinel makes failure in the process substitution observable. -z
+  # preserves paths with spaces, quotes, backslashes, and newlines literally.
+  mapfile -d '' -t records < <(git worktree list --porcelain -z && printf 'OK\0')
+  ((${#records[@]} > 1)) || return 1
+  [[ ${records[-1]:-} == OK && ${records[0]:-} == 'worktree /'* ]] || return 1
+  main=${records[0]#worktree }
+  for field in "${records[@]}"; do
+    case "$field" in
+      'worktree '*) path=${field#worktree } ;;
+      'branch '*) [[ $path != "$root" ]] || branch=${field#branch refs/heads/} ;;
+      'HEAD '*) [[ $path != "$root" ]] || head=${field#HEAD } ;;
+    esac
+  done
+  [[ -n $head && $main != "$root" && -d $main ]] || { echo 'gd: cannot resolve linked worktree metadata' >&2; return 1; }
+  status=$(git -C "$root" status --porcelain --untracked-files=all) || return 1
+  [[ -z $status ]] || { echo "gd: dirty worktree '$root'; review and clean it manually, nothing removed" >&2; return 1; }
+  git -C "$main" merge-base --is-ancestor "$head" HEAD || {
+    echo "gd: '$root' (${branch:-detached HEAD}) is not merged into '$main' HEAD; nothing removed" >&2
+    return 1
+  }
+  gum confirm "Remove worktree '$root' and branch '${branch:-[detached HEAD, no branch]}'? Return to '$main'. No force." || return 1
+  current=$(git -C "$root" rev-parse HEAD) || return 1
+  [[ $current == "$head" ]] || { echo 'gd: HEAD changed after review; nothing removed' >&2; return 1; }
+  current=$(git -C "$root" symbolic-ref -q HEAD) || current=""
+  [[ $current == "${branch:+refs/heads/$branch}" ]] || { echo 'gd: branch changed after review; nothing removed' >&2; return 1; }
+  git -C "$main" merge-base --is-ancestor "$head" HEAD || {
+    echo 'gd: primary worktree no longer contains the reviewed HEAD; nothing removed' >&2
+    return 1
+  }
+  builtin cd -- "$main" || return 1
+  if ! git worktree remove -- "$root"; then
+    builtin cd -- "$cwd" || return 1
+    return 1
   fi
+  [[ -z $branch ]] || git branch -d -- "$branch" || {
+    echo "gd: worktree removed; branch '$branch' retained by Git's safeguards. Review it manually." >&2
+    return 1
+  }
 }

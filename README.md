@@ -368,6 +368,7 @@ After stowing or changing owned packages:
 
 Complete these manual fresh-session checks:
 
+- In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
 - Confirm the core symlinks and local Git identity exist: `test -L ~/.bashrc && test -L ~/.config/starship.toml && test -L ~/.config/nvim/lua/config/options.lua && test -f ~/.config/git/config.local`
 - Start a fresh shell and confirm Bash, Starship, and Tmux load without errors.
 - Confirm `printenv OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` and `printenv OPENCODE_ENABLE_EXA` each print `1`.

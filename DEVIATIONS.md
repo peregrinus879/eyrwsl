@@ -84,6 +84,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 
 ### Bash
 
+- `ga <branch>` creates beside the actual checkout root even from a subdirectory and checks branch/add/navigation failures. `gd` takes no arguments and uses Git worktree metadata, not a directory-name guess; it confirms the real path/branch, rechecks HEAD/branch, and refuses dirty work or commits not contained in the primary worktree's current HEAD before ordinary `git worktree remove` and `git branch -d`. Directory changes use `builtin cd` so the interactive zoxide alias cannot reinterpret reviewed paths. A failed navigation preserves the created checkout; failed branch deletion retains the branch and reports the partial outcome. Force is a separate manual decision, not a helper option.
 - Config location is `~/.config/bash/` using an XDG-style layout instead of Omarchy's internal default path.
 - Modular shell functions live in `~/.config/bash/functions/` and are sourced via a loop in `.bashrc`.
 - Optional Bash overlays are sourced from `~/.config/bash-overlays/*` after the shared init. The directory is untracked and reserved for machine-local additions.
