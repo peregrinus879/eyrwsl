@@ -1,108 +1,183 @@
-# Create or focus a Herdr Dev Workspace: one herdr workspace per project holding
-# a dev layout in one tab named after the project: the AI agent on the
-# left at full height, $EDITOR and a shell stacked equally on the right
-# (50/50 by width). Focus lands on the agent.
-# Usage: hdw <cc|cx|oc> [-c]   cc = Claude Code, cx = Codex, oc = OpenCode;
-# -c continues the agent's last conversation in this project. Bare hdw
-# refocuses an existing project workspace. One agent per workspace by design
-# (single writer). The agents run plain, as EyrAgents configures them.
-# Herdr socket commands need a running server and do not auto-start one; hdw
-# starts the server headless when it is down, so one invocation works from a
-# cold boot. If the headless start fails, hdw attaches plain herdr with a hint
-# to rerun hdw inside (documented two-step fallback).
-hdw() {
+# One project workspace, an agent-named tab, AI full-height left, editor and
+# shell equally stacked right. Existing workspaces are focused without changes.
+# Usage: hdw <cc|cx|oc> [-c]; bare hdw only focuses. Agents run plain.
+hdw() (
   local agent="" continue_flag=0 arg
   for arg in "$@"; do
     case "$arg" in
       cc | cx | oc)
-        if [[ -n $agent ]]; then
-          echo "hdw: choose one agent, cc, cx, or oc"
-          return 1
-        fi
-        agent=$arg
-        ;;
+        [[ -z $agent ]] || { echo 'hdw: choose one agent, cc, cx, or oc' >&2; return 1; }
+        agent=$arg ;;
       -c) continue_flag=1 ;;
-      *)
-        echo "Usage: hdw <cc|cx|oc> [-c]"
-        return 1
-        ;;
+      *) echo 'Usage: hdw <cc|cx|oc> [-c]' >&2; return 1 ;;
     esac
   done
+  local root ws_label state_dir state_file transaction="" pending="" ws_id="" committed=0 saved=0 tagged=0
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$(pwd -P) || return 1
+  ws_label=${root##*/}; ws_label=${ws_label//[.:]/-}
+  [[ -n $ws_label && $root != *[$'\n\r\t']* ]] || { echo 'hdw: unsupported project path' >&2; return 1; }
+  state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/hdw"
+  state_file="$state_dir/roots"
+  umask 077
+  mkdir -p -- "$state_dir" || return 1
+  # Never unlink the lock, and do not let the server/client inherit it.
+  exec 9>"$state_dir/lock" || return 1
+  flock -x 9 || return 1
+  _hdw_rpc() {
+    local reply
+    reply=$(herdr "$@" 9>&-) || { echo "hdw: RPC failed: $*" >&2; return 1; }
+    if ! jq -es 'length == 1 and (.[0] | type == "object" and .error == null and (.result | type == "object") and (.result.type | type == "string"))' <<<"$reply" >/dev/null; then
+      echo "hdw: invalid/error response: $*: $reply" >&2
+      return 1
+    fi
+    printf '%s\n' "$reply"
+  }
+  # Herdr's send_ok_request CLI wrappers return status only, no JSON on success.
+  _hdw_ok() {
+    local reply
+    reply=$(herdr "$@" 9>&-) && [[ -z $reply ]] || { echo "hdw: request failed: $*: $reply" >&2; return 1; }
+  }
+  _hdw_owned() {
+    local reply
+    reply=$(_hdw_rpc workspace get "$ws_id") || return 1
+    jq -e --arg w "$ws_id" --arg o "$pending" '.result.workspace | .workspace_id == $w and .tokens.hdw_owner == $o' <<<"$reply" >/dev/null || {
+      echo "hdw: ownership check refused workspace $ws_id (creation $pending)" >&2
+      return 1
+    }
+  }
+  # shellcheck disable=SC2329 # Invoked by the subshell's EXIT trap.
+  _hdw_cleanup() {
+    local status=$? reply id closed=0 keep=0
+    if [[ $committed == 0 && -n $pending ]]; then
+      # A lost create reply is recoverable by the unique pending label only.
+      if [[ -z $ws_id ]]; then
+        reply=$(_hdw_rpc workspace list) && ws_id=$(jq -er --arg l "$pending" \
+          '[.result.workspaces[] | select(.label == $l)] | select(length == 1) | .[0].workspace_id | select(test("^w[0-9A-HJKMNP-TV-Z]+$"))' <<<"$reply")
+      fi
+      if [[ -n $ws_id ]]; then
+        if reply=$(_hdw_rpc workspace get "$ws_id") && id=$(jq -er --arg id "$ws_id" --arg l "$pending" --arg tagged "$tagged" \
+          '.result.workspace | select(.workspace_id == $id and (.tokens.hdw_owner == $l or ($tagged == "0" and .label == $l and .tokens.hdw_owner == null))) | .workspace_id' <<<"$reply") &&
+          reply=$(_hdw_rpc workspace close "$id") && [[ $(jq -r '.result.type' <<<"$reply") == ok ]]; then
+          closed=1
+        else
+          echo "hdw: rollback unverified; inspect workspace $ws_id ($pending) manually" >&2
+        fi
+      fi
+      if ((saved)); then
+        # If the workspace may still exist, retain its collision guard and the
+        # previous record for manual recovery instead of discarding evidence.
+        if ((closed)) && mv -- "$transaction/roots.before" "$state_file"; then :; else
+          keep=1
+          echo "hdw: roots recovery retained at $transaction; inspect before retrying" >&2
+        fi
+      fi
+    fi
+    [[ -z $transaction || $keep == 1 ]] || rm -rf -- "$transaction"
+    ((status == 0)) || echo 'hdw: stopped; workspace creation/attachment did not complete' >&2
+    return "$status"
+  }
+  trap _hdw_cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM HUP
 
-  local root ws_label
-  root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$(pwd -P)
-  # Same transform as the tmux launcher, so both name a project identically
-  ws_label=$(basename "$root" | tr '.:' '--')
-
-  # Workspace ids recycle across server restarts, so the collision record is
-  # keyed by label: label, workspace id at creation, project root.
-  local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/hdw"
-  local state_file="$state_dir/roots"
-
-  if ! herdr status server 2>/dev/null | grep -q '^status: running'; then
-    local i
-    setsid -f herdr server >/dev/null 2>&1
+  local status i reply matches recorded_root="" label id path
+  status=$(herdr status server 9>&- 2>/dev/null) || status=""
+  if [[ $'\n'$status$'\n' != *$'\nstatus: running\n'* ]]; then
+    setsid -f herdr server 9>&- >/dev/null 2>&1 || return 1
     for ((i = 0; i < 20; i++)); do
-      herdr status server 2>/dev/null | grep -q '^status: running' && break
+      status=$(herdr status server 9>&- 2>/dev/null) || status=""
+      [[ $'\n'$status$'\n' != *$'\nstatus: running\n'* ]] || break
       sleep 0.25
     done
-    if ! herdr status server 2>/dev/null | grep -q '^status: running'; then
-      echo "hdw: headless server start failed; attaching plain herdr, rerun hdw inside."
-      herdr
-      return
-    fi
+    [[ $'\n'$status$'\n' == *$'\nstatus: running\n'* ]] || { echo 'hdw: headless server start failed; start herdr manually, then rerun hdw' >&2; return 1; }
   fi
-
-  local ws_id recorded_root=""
-  ws_id=$(herdr workspace list 2>/dev/null |
-    jq -r --arg l "$ws_label" '.result.workspaces[] | select(.label == $l) | .workspace_id' | head -n 1)
-
+  reply=$(_hdw_rpc workspace list) || return 1
+  matches=$(jq -ec --arg l "$ws_label" '
+    .result | select(.type == "workspace_list") | .workspaces |
+    select(type == "array" and all(.[]; (.label | type == "string") and (.workspace_id | type == "string" and test("^w[0-9A-HJKMNP-TV-Z]+$")))) |
+    [.[] | select(.label == $l)] | select(length <= 1)' <<<"$reply") || return 1
+  ws_id=$(jq -r '.[0].workspace_id // empty' <<<"$matches") || return 1
+  if [[ -f $state_file ]]; then
+    while IFS=$'\t' read -r label id path || [[ -n $label || -n $id || -n $path ]]; do
+      [[ -n $label && $id =~ ^w[0-9A-HJKMNP-TV-Z]+$ && $path == /* && $path != *$'\t'* ]] || { echo 'hdw: malformed roots record; inspect it manually' >&2; return 1; }
+      if [[ $label == "$ws_label" ]]; then
+        [[ -z $recorded_root ]] || { echo 'hdw: duplicate roots record' >&2; return 1; }
+        recorded_root=$path
+      fi
+    done <"$state_file"
+  elif [[ -e $state_file ]]; then
+    echo 'hdw: roots is not a regular file' >&2; return 1
+  fi
   if [[ -n $ws_id ]]; then
-    [[ -f $state_file ]] && recorded_root=$(awk -F '\t' -v l="$ws_label" '$1 == l { print $3; exit }' "$state_file")
     if [[ -n $recorded_root && $recorded_root != "$root" ]]; then
-      echo "herdr workspace '$ws_label' belongs to $recorded_root; close it or focus it manually."
+      echo "herdr workspace '$ws_label' belongs to $recorded_root; focus it manually." >&2
       return 1
     fi
-    [[ -z $recorded_root ]] && echo "hdw: focusing '$ws_label', a workspace hdw did not create"
-    [[ -n $agent || $continue_flag == 1 ]] && echo "hdw: workspace exists, arguments ignored"
-    herdr workspace focus "$ws_id" >/dev/null
+    [[ -n $recorded_root ]] || echo "hdw: focusing '$ws_label', a workspace hdw did not create"
+    [[ -z $agent && $continue_flag == 0 ]] || echo 'hdw: workspace exists, arguments ignored'
   else
-    if [[ -z $agent ]]; then
-      echo "Usage: hdw <cc|cx|oc> [-c]"
-      return 1
-    fi
-    local binary command
+    [[ -n $agent ]] || { echo 'Usage: hdw <cc|cx|oc> [-c]' >&2; return 1; }
+    local binary command agent_pane tab_id editor_pane shell_pane pane created
     case "$agent" in
-      cc) binary=claude; command=claude; ((continue_flag)) && command="claude -c" ;;
-      cx) binary=codex; command=codex; ((continue_flag)) && command="codex resume --last" ;;
-      oc) binary=opencode; command=opencode; ((continue_flag)) && command="opencode -c" ;;
+      cc) binary=claude; command=claude; ((continue_flag == 0)) || command='claude -c' ;;
+      cx) binary=codex; command=codex; ((continue_flag == 0)) || command='codex resume --last' ;;
+      oc) binary=opencode; command=opencode; ((continue_flag == 0)) || command='opencode -c' ;;
     esac
-    if ! type -P "$binary" > /dev/null 2>&1; then
-      echo "hdw: required agent '$binary' is not installed"
-      return 1
-    fi
-    local created agent_pane tab_id editor_pane
-    created=$(herdr workspace create --cwd "$root" --label "$ws_label" --no-focus) || return 1
-    ws_id=$(jq -r '.result.workspace.workspace_id' <<<"$created")
-    agent_pane=$(jq -r '.result.root_pane.pane_id' <<<"$created")
-    tab_id=$(jq -r '.result.tab.tab_id' <<<"$created")
-    herdr tab rename "$tab_id" "$(basename "$root")" >/dev/null
-    # The agent keeps the left half at full height and the focus; the editor and shell share the right half equally.
-    editor_pane=$(herdr pane split "$agent_pane" --direction right --ratio 0.5 --cwd "$root" --no-focus |
-      jq -r '.result.pane.pane_id')
-    herdr pane split "$editor_pane" --direction down --ratio 0.5 --cwd "$root" --no-focus >/dev/null
-    herdr pane run "$agent_pane" "$command" >/dev/null
-    herdr pane run "$editor_pane" "${EDITOR:-nvim} ." >/dev/null
-    mkdir -p "$state_dir"
-    {
-      [[ -f $state_file ]] && awk -F '\t' -v l="$ws_label" '$1 != l' "$state_file"
-      printf '%s\t%s\t%s\n' "$ws_label" "$ws_id" "$root"
-    } >"$state_file.tmp" && mv "$state_file.tmp" "$state_file"
-    herdr workspace focus "$ws_id" >/dev/null
+    type -P "$binary" >/dev/null || { echo "hdw: required agent '$binary' is not installed" >&2; return 1; }
+    transaction=$(mktemp -d "$state_dir/pending.XXXXXXXXXX") || return 1
+    pending="hdw-${transaction##*/}"
+    reply=$(_hdw_rpc workspace create --cwd "$root" --label "$pending" --no-focus) || return 1
+    created=$reply
+    ws_id=$(jq -er --arg l "$pending" '.result.workspace | select(.label == $l) | .workspace_id | select(type == "string" and test("^w[0-9A-HJKMNP-TV-Z]+$"))' <<<"$reply") || return 1
+    agent_pane=$(jq -er --arg w "$ws_id" '.result.root_pane | select(.workspace_id == $w) | .pane_id | select(type == "string" and test("^" + $w + ":p[0-9A-HJKMNP-TV-Z]+$"))' <<<"$reply") || return 1
+    tab_id=$(jq -er --arg w "$ws_id" '.result.tab | select(.workspace_id == $w) | .tab_id | select(type == "string" and test("^" + $w + ":t[0-9A-HJKMNP-TV-Z]+$"))' <<<"$reply") || return 1
+    jq -e --arg t "$tab_id" '.result | .type == "workspace_created" and .root_pane.tab_id == $t' <<<"$created" >/dev/null || return 1
+    reply=$(_hdw_rpc workspace get "$ws_id") || return 1
+    jq -e --arg w "$ws_id" --arg l "$pending" '.result.workspace | .workspace_id == $w and .label == $l and .tokens.hdw_owner == null' <<<"$reply" >/dev/null || return 1
+    _hdw_ok workspace report-metadata "$ws_id" --source user:hdw --token "hdw_owner=$pending" || return 1
+    tagged=1
+    _hdw_owned || return 1
+    reply=$(_hdw_rpc tab rename "$tab_id" "$binary") || return 1
+    jq -e --arg t "$tab_id" --arg l "$binary" '.result.tab | .tab_id == $t and .label == $l' <<<"$reply" >/dev/null || return 1
+    _hdw_owned || return 1
+    reply=$(_hdw_rpc pane split "$agent_pane" --direction right --ratio 0.5 --cwd "$root" --no-focus) || return 1
+    editor_pane=$(jq -er --arg w "$ws_id" --arg t "$tab_id" '.result.pane | select(.workspace_id == $w and .tab_id == $t) | .pane_id | select(type == "string" and test("^" + $w + ":p[0-9A-HJKMNP-TV-Z]+$"))' <<<"$reply") || return 1
+    [[ $editor_pane != "$agent_pane" ]] || return 1
+    _hdw_owned || return 1
+    reply=$(_hdw_rpc pane split "$editor_pane" --direction down --ratio 0.5 --cwd "$root" --no-focus) || return 1
+    shell_pane=$(jq -er --arg w "$ws_id" --arg t "$tab_id" '.result.pane | select(.workspace_id == $w and .tab_id == $t) | .pane_id | select(type == "string" and test("^" + $w + ":p[0-9A-HJKMNP-TV-Z]+$"))' <<<"$reply") || return 1
+    [[ $shell_pane != "$agent_pane" && $shell_pane != "$editor_pane" ]] || return 1
+    for pane in "$agent_pane" "$editor_pane" "$shell_pane"; do
+      reply=$(_hdw_rpc pane get "$pane") || return 1
+      jq -e --arg p "$pane" --arg w "$ws_id" --arg t "$tab_id" \
+        '.result.pane | .pane_id == $p and .workspace_id == $w and .tab_id == $t' <<<"$reply" >/dev/null || return 1
+    done
+    # Prepare a unique atomic replacement and rollback copy under the same lock.
+    if [[ -f $state_file ]]; then cp -- "$state_file" "$transaction/roots.before" || return 1; else : >"$transaction/roots.before" || return 1; fi
+    while IFS=$'\t' read -r label id path || [[ -n $label || -n $id || -n $path ]]; do
+      [[ $label == "$ws_label" ]] || printf '%s\t%s\t%s\n' "$label" "$id" "$path"
+    done <"$transaction/roots.before" >"$transaction/roots.new" || return 1
+    printf '%s\t%s\t%s\n' "$ws_label" "$ws_id" "$root" >>"$transaction/roots.new" || return 1
+    _hdw_owned || return 1
+    saved=1
+    mv -- "$transaction/roots.new" "$state_file" || return 1
+    _hdw_owned || return 1
+    reply=$(_hdw_rpc workspace rename "$ws_id" "$ws_label") || return 1
+    jq -e --arg w "$ws_id" --arg l "$ws_label" --arg o "$pending" '.result.workspace | .workspace_id == $w and .label == $l and .tokens.hdw_owner == $o' <<<"$reply" >/dev/null || return 1
   fi
-
-  # Inside herdr the focus switch above is the whole job; outside, attach
-  if [[ -z ${HERDR_PANE_ID:-} ]]; then
-    herdr
+  [[ -z $pending ]] || _hdw_owned || return 1
+  reply=$(_hdw_rpc workspace focus "$ws_id") || return 1
+  jq -e --arg w "$ws_id" --arg o "$pending" '.result.workspace | .workspace_id == $w and .focused == true and ($o == "" or .tokens.hdw_owner == $o)' <<<"$reply" >/dev/null || return 1
+  if [[ -n $pending ]]; then
+    # Herdr has no conditional multi-RPC transaction. Recheck immediately before
+    # each input; membership and a previously valid reply alone are not ownership.
+    _hdw_owned || return 1
+    _hdw_ok pane run "$editor_pane" "${EDITOR:-nvim} ." || return 1
+    _hdw_owned || return 1
+    _hdw_ok pane run "$agent_pane" "$command" || return 1
   fi
-}
+  committed=1
+  exec 9>&-
+  # Inside Herdr the focus switch is the whole job; outside, attach.
+  [[ -n ${HERDR_PANE_ID:-} ]] || herdr
+)

@@ -1,80 +1,135 @@
-# Create or resume a Dev Workspace: one tmux session per project holding
-# a dev layout in one window named after the project: the AI agent on the
-# left at full height, $EDITOR and a shell stacked equally on the right
-# (50/50 by width). Focus lands on the agent.
-# Usage: tdw <cc|cx|oc> [-c]   cc = Claude Code, cx = Codex, oc = OpenCode;
-# -c continues the agent's last conversation in this project. Bare tdw
-# re-attaches an existing project session. One agent per workspace by design
-# (single writer). The agents run plain, as EyrAgents configures them.
-tdw() {
+# One project session, an agent-named window, AI full-height left, editor and
+# shell equally stacked right. Existing sessions are attached without changes.
+# Usage: tdw <cc|cx|oc> [-c]; bare tdw only attaches. Agents run plain.
+tdw() (
   local agent="" continue_flag=0 arg
   for arg in "$@"; do
     case "$arg" in
       cc | cx | oc)
-        if [[ -n $agent ]]; then
-          echo "tdw: choose one agent, cc, cx, or oc"
-          return 1
-        fi
-        agent=$arg
-        ;;
+        [[ -z $agent ]] || { echo 'tdw: choose one agent, cc, cx, or oc' >&2; return 1; }
+        agent=$arg ;;
       -c) continue_flag=1 ;;
-      *) echo "Usage: tdw <cc|cx|oc> [-c]"; return 1 ;;
+      *) echo 'Usage: tdw <cc|cx|oc> [-c]' >&2; return 1 ;;
     esac
   done
 
-  local root session existing_root
-  root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$(pwd -P)
-  # Replace dots/colons, which tmux disallows in session names
-  session=$(basename "$root" | tr '.:' '--')
+  local root session existing_root state_dir transaction="" pending="" owned="" committed=0
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$(pwd -P) || return 1
+  session=${root##*/}; session=${session//[.:]/-}
+  [[ -n $session && $root != *[$'\n\r\t']* ]] || { echo 'tdw: unsupported project path' >&2; return 1; }
+  state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/tdw"
+  umask 077
+  mkdir -p -- "$state_dir" || return 1
+  # Never unlink the lock: waiters must keep referring to the same inode.
+  exec 9>"$state_dir/lock" || return 1
+  flock -x 9 || return 1
+  # Servers and attached clients must not inherit the creation lock.
+  _tdw_tmux() { tmux "$@" 9>&-; }
+  _tdw_mutate() {
+    local arg command="" reply pane="" target="$owned:"
+    case $1 in
+      select-pane | send-keys) target=$3 ;;
+      set-option) [[ $2 != -w ]] || target=$4 ;;
+      split-window) target=$7 ;;
+    esac
+    for arg in "$@"; do
+      [[ $arg != *[$'\n\r']* ]] || return 1
+      command+="'${arg//\'/\'\\\'\'}' "
+    done
+    # The synchronous server-side condition also covers replacement after the
+    # last read. A success receipt distinguishes a refused branch from success.
+    reply=$(_tdw_tmux if-shell -F -t "$target" "#{==:#{TDW_OWNER},${pending}}" \
+      "$command; display-message -p '$pending'" 'display-message -p refused') || return 1
+    if [[ $1 == split-window ]]; then
+      pane=${reply%$'\n'*}; reply=${reply##*$'\n'}
+      [[ $pane =~ ^%[0-9]+$ ]] || return 1
+    fi
+    [[ $reply == "$pending" ]] || { echo "tdw: ownership check refused $owned (creation $pending)" >&2; return 1; }
+    [[ $1 != split-window ]] || printf '%s\n' "$pane"
+  }
+  # shellcheck disable=SC2329 # Invoked by the subshell's EXIT trap.
+  _tdw_cleanup() {
+    local status=$?
+    if [[ $committed == 0 && -n $owned ]]; then
+      if ! _tdw_mutate kill-session -t "$owned" || _tdw_tmux has-session -t "$owned" 2>/dev/null; then
+        echo "tdw: rollback refused/unverified; inspect target $owned, creation $pending, project $session manually" >&2
+      fi
+    fi
+    [[ -z $transaction ]] || rmdir -- "$transaction"
+    ((status == 0)) || echo 'tdw: stopped; workspace creation/attachment did not complete' >&2
+    return "$status"
+  }
+  trap _tdw_cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM HUP
 
-  if tmux has-session -t "=$session" 2>/dev/null; then
-    existing_root=$(tmux show-option -t "$session" -qv @dw_root)
+  if _tdw_tmux has-session -t "=$session" 2>/dev/null; then
+    existing_root=$(_tdw_tmux show-option -t "=$session:" -qv @dw_root) || return 1
     if [[ -n $existing_root && $existing_root != "$root" ]]; then
-      echo "tmux session '$session' belongs to $existing_root; kill it or attach manually."
+      echo "tmux session '$session' belongs to $existing_root; attach manually." >&2
       return 1
     fi
-    [[ -n $agent || $continue_flag == 1 ]] && echo "tdw: session exists, arguments ignored"
+    [[ -z $agent && $continue_flag == 0 ]] || echo 'tdw: session exists, arguments ignored'
   else
-    if [[ -z $agent ]]; then
-      echo "Usage: tdw <cc|cx|oc> [-c]"
-      return 1
-    fi
+    [[ -n $agent ]] || { echo 'Usage: tdw <cc|cx|oc> [-c]' >&2; return 1; }
     local binary command
     case "$agent" in
-      cc) binary=claude; command=claude; ((continue_flag)) && command="claude -c" ;;
-      cx) binary=codex; command=codex; ((continue_flag)) && command="codex resume --last" ;;
-      oc) binary=opencode; command=opencode; ((continue_flag)) && command="opencode -c" ;;
+      cc) binary=claude; command=claude; ((continue_flag == 0)) || command='claude -c' ;;
+      cx) binary=codex; command=codex; ((continue_flag == 0)) || command='codex resume --last' ;;
+      oc) binary=opencode; command=opencode; ((continue_flag == 0)) || command='opencode -c' ;;
     esac
-    if ! type -P "$binary" > /dev/null 2>&1; then
-      echo "tdw: required agent '$binary' is not installed"
-      return 1
-    fi
-    # Inside tmux, the tty is only the calling pane, not the full window.
-    # Start at the full size so switching clients does not stretch the layout.
-    local size lines="" cols="" agent_pane editor_pane
+    type -P "$binary" >/dev/null || { echo "tdw: required agent '$binary' is not installed" >&2; return 1; }
+    local size lines="" cols="" created agent_pane editor_pane shell_pane session_id window_id pane
     local -a size_args=()
     if [[ -n ${TMUX:-} ]]; then
-      size=$(tmux display-message -p -t "${TMUX_PANE:-}" '#{window_height} #{window_width}') || return 1
+      [[ ${TMUX_PANE:-} =~ ^%[0-9]+$ ]] || return 1
+      size=$(_tdw_tmux display-message -p -t "$TMUX_PANE" '#{window_height} #{window_width}') || return 1
+      [[ $size =~ ^[0-9]+\ [0-9]+$ ]] || return 1
       read -r lines cols <<<"$size"
     elif size=$({ stty size < /dev/tty; } 2>/dev/null) && [[ $size =~ ^[0-9]+\ [0-9]+$ ]]; then
       read -r lines cols <<<"$size"
     else
       lines=${LINES:-} cols=${COLUMNS:-}
     fi
-    [[ -n $lines && -n $cols && $lines -gt 0 && $cols -gt 0 ]] && size_args=(-x "$cols" -y "$lines")
-    agent_pane=$(tmux new-session -d -s "$session" -c "$root" -n "$(basename "$root")" "${size_args[@]}" -P -F '#{pane_id}')
-    tmux set-option -t "$session" @dw_root "$root"
-    # The agent keeps the left half at full height; the editor and shell share the right half equally.
-    editor_pane=$(tmux split-window -h -l 50% -t "$agent_pane" -c "$root" -P -F '#{pane_id}')
-    tmux split-window -v -l 50% -t "$editor_pane" -c "$root"
-    tmux send-keys -t "$agent_pane" "$command" C-m
-    tmux send-keys -t "$editor_pane" "${EDITOR:-nvim} ." C-m
-    tmux select-pane -t "$agent_pane"
+    if [[ $lines =~ ^[0-9]+$ && $cols =~ ^[0-9]+$ ]] && ((lines > 0 && cols > 0)); then
+      size_args=(-x "$cols" -y "$lines")
+    fi
+    transaction=$(mktemp -d "$state_dir/pending.XXXXXXXXXX") || return 1
+    pending="tdw-${transaction##*/}"; pending=${pending//./-}
+    # A unique name and token also cover a successful create with a lost reply.
+    owned="=$pending"
+    created=$(_tdw_tmux new-session -d -s "$pending" -e "TDW_OWNER=$pending" -c "$root" \
+      -n "$binary" "${size_args[@]}" -P -F '#{session_id} #{window_id} #{pane_id}') || return 1
+    [[ $created =~ ^\$[0-9]+\ @[0-9]+\ %[0-9]+$ ]] || return 1
+    read -r session_id window_id agent_pane <<<"$created"
+    created=$(_tdw_tmux display-message -p -t "$agent_pane" '#{session_name} #{TDW_OWNER}') || return 1
+    [[ $created == "$pending $pending" ]] || return 1
+    owned=$session_id
+    _tdw_mutate set-option -t "$session_id" @dw_root "$root" || return 1
+    _tdw_mutate set-option -w -t "$window_id" automatic-rename off || return 1
+    _tdw_mutate set-option -w -t "$window_id" allow-rename off || return 1
+    _tdw_mutate set-option -t "$session_id" set-titles-string '#h:#S:#W' || return 1
+    editor_pane=$(_tdw_mutate split-window -d -h -l 50% -t "$agent_pane" -c "$root" -P -F '#{pane_id}') || return 1
+    [[ $editor_pane =~ ^%[0-9]+$ && $editor_pane != "$agent_pane" ]] || return 1
+    shell_pane=$(_tdw_mutate split-window -d -v -l 50% -t "$editor_pane" -c "$root" -P -F '#{pane_id}') || return 1
+    [[ $shell_pane =~ ^%[0-9]+$ && $shell_pane != "$agent_pane" && $shell_pane != "$editor_pane" ]] || return 1
+    for pane in "$agent_pane" "$editor_pane" "$shell_pane"; do
+      created=$(_tdw_tmux display-message -p -t "$pane" '#{session_id} #{window_id} #{window_panes} #{TDW_OWNER}') || return 1
+      [[ $created == "$session_id $window_id 3 $pending" ]] || return 1
+    done
+    _tdw_mutate select-pane -t "$agent_pane" || return 1
+    _tdw_mutate rename-session -t "$session_id" "$session" || return 1
+    # No input is sent until every pane and its ownership have been validated.
+    _tdw_mutate send-keys -t "$agent_pane" -l "$command" || return 1
+    _tdw_mutate send-keys -t "$editor_pane" -l "${EDITOR:-nvim} ." || return 1
+    _tdw_mutate send-keys -t "$editor_pane" C-m || return 1
+    _tdw_mutate send-keys -t "$agent_pane" C-m || return 1
   fi
-
+  committed=1
+  exec 9>&-
   if [[ -n ${TMUX:-} ]]; then
-    tmux switch-client -t "=$session"
+    _tdw_tmux switch-client -t "=$session"
   else
-    tmux attach-session -t "=$session"
+    _tdw_tmux attach-session -t "=$session"
   fi
-}
+)

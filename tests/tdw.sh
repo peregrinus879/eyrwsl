@@ -1,6 +1,6 @@
 #!/bin/bash
 # Fixtures for the tdw workspace launcher on an isolated tmux server: one
-# window named after the project with the agent at full height on the left
+# agent-named window with the agent at full height on the left
 # half, the editor and shell split equally on the right, and focus on the agent; the
 # three agents and their continue forms; re-attach; the root-collision guard;
 # and the usage and missing-agent refusals. Stub agents record their arguments;
@@ -17,8 +17,11 @@ fi
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 TMP=$(mktemp -d)
 SOCKET="tdw-test-$$"
-trap 'command tmux -L "$SOCKET" kill-server >/dev/null 2>&1 || true; rm -rf -- "$TMP"' EXIT
+BASE_SOCKET=$SOCKET suffix=""
+trap 'for suffix in "" -reuse-{1..10}; do command tmux -L "$BASE_SOCKET$suffix" kill-server >/dev/null 2>&1 || true; rm -f -- "${TMUX_TMPDIR:-/tmp}/tmux-$UID/$BASE_SOCKET$suffix"; done; rm -rf -- "$TMP"' EXIT
 unset TMUX TMUX_PANE
+export XDG_STATE_HOME="$TMP/state" HOME="$TMP/home"
+mkdir -p "$HOME"
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
@@ -29,6 +32,61 @@ fail() {
 # default size must lose to the launcher's explicit size.
 printf 'set -g default-command "bash --noprofile --norc"\nset -g default-size 80x24\n' >"$TMP/tmux.conf"
 tmux() {
+  local count=0 mode="" target="" previous="" arg action=$1 owner_value="" expected=""
+  if [[ $1 == if-shell ]]; then
+    action=${6%% *}; action=${action//\'/}
+  fi
+  if [[ $action == kill-session && ${TDW_CLEANUP_NOOP:-0} == 1 ]]; then
+    command tmux -L "$SOCKET" display-message -p -t "$4" '#{TDW_OWNER}'
+    return 0
+  fi
+  if [[ -n ${TDW_INJECT:-} ]]; then
+    [[ ! -f $TMP/count-$action ]] || read -r count <"$TMP/count-$action"
+    count=$((count + 1))
+    printf '%s\n' "$count" >"$TMP/count-$action"
+    [[ $TDW_INJECT != "$action:$count:"* ]] || mode=${TDW_INJECT##*:}
+    [[ $mode != exit ]] || return 1
+    if [[ $mode == lost || $mode == invalid ]]; then
+      command tmux -L "$SOCKET" -f "$TMP/tmux.conf" "$@" >/dev/null || return 1
+      [[ $mode != lost ]] || return 1
+      printf 'invalid\n'
+      return 0
+    fi
+    if [[ $mode == foreign ]]; then
+      target=$(command tmux -L "$SOCKET" list-sessions -F '#{session_name}' | grep '^tdw-pending-')
+      command tmux -L "$SOCKET" set-environment -t "=$target" TDW_OWNER foreign
+      printf '%s\n' "$target" >"$TMP/foreign"
+      return 1
+    fi
+    if [[ $mode == replace ]]; then
+      [[ $(command tmux -L "$SOCKET" list-sessions -F '#{session_id}') == "\$0" ]] || fail 'replacement requires a private one-session server'
+      command tmux -L "$SOCKET" display-message -p -t '%0' '#{TDW_OWNER}' >"$TMP/replaced-token"
+      command tmux -L "$SOCKET" kill-server
+      sleep 0.1
+      command tmux -L "$SOCKET" -f "$TMP/tmux.conf" new-session -d -s foreign -x 200 -y 50
+      command tmux -L "$SOCKET" split-window -h -t '%0'
+      command tmux -L "$SOCKET" split-window -v -t '%1'
+      command tmux -L "$SOCKET" set-environment -t foreign TDW_OWNER foreign
+      command tmux -L "$SOCKET" set-option -t foreign @dw_root /foreign
+      command tmux -L "$SOCKET" list-panes -t =foreign -F '#{session_id}|#{window_id}|#{pane_id}|#{session_name}|#{pane_active}|#{@dw_root}|#{TDW_OWNER}|#{automatic-rename}|#{allow-rename}|#{set-titles-string}' >"$TMP/replacement-before"
+    fi
+  fi
+  if [[ $action == send-keys ]]; then
+    if [[ $1 == if-shell ]]; then
+      [[ $6 =~ (%[0-9]+) ]] || fail 'conditional send has no pane ID'
+      target=${BASH_REMATCH[1]}
+      owner_value=$(command tmux -L "$SOCKET" display-message -p -t "$4" '#{TDW_OWNER}')
+      expected=${5#'#{==:#{TDW_OWNER},'}; expected=${expected%\}}
+    else
+      for arg in "$@"; do
+        [[ $previous != -t ]] || target=$arg
+        previous=$arg
+      done
+    fi
+    [[ $target =~ ^%[0-9]+$ ]] || fail 'send-keys received an unchecked target'
+    [[ $(command tmux -L "$SOCKET" display-message -p -t "$target" '#{window_panes}') == 3 ]] || fail 'keys sent before full layout'
+    [[ $owner_value != "$expected" ]] || printf '%s\n' "$*" >>"$TMP/send.log"
+  fi
   case ${1:-} in
     attach-session | switch-client)
       printf '%s\n' "$*" >>"$TMP/attach.log"
@@ -47,7 +105,7 @@ sleep 60
 STUB
   chmod +x "$TMP/bin/$stub"
 done
-for tool in git tmux basename tr; do ln -s "$(command -v "$tool")" "$TMP/bin-min/$tool"; done
+for tool in git tmux mkdir flock mktemp stty rmdir; do ln -s "$(type -P "$tool")" "$TMP/bin-min/$tool"; done
 export PATH="$TMP/bin:$PATH" EDITOR=true
 # shellcheck source=/dev/null
 source "$ROOT/bash/.config/bash/functions/tdw"
@@ -89,8 +147,9 @@ case_layout() {
   local dir="$TMP/proj/alpha.one" session="alpha-one"
   project "$dir"
   (cd "$dir" && tdw cc) || fail "tdw cc failed"
-  [[ $(tmux list-windows -t "=$session" -F '#{window_name}:#{window_panes}') == "alpha.one:3" ]] ||
-    fail "expected one window named after the project with three panes"
+  [[ $(tmux list-windows -t "=$session" -F '#{window_name}:#{window_panes}') == "claude:3" ]] ||
+    fail "expected one agent-named window with three panes"
+  [[ $(tmux show-option -t "=$session:" -qv set-titles-string) == '#h:#S:#W' ]] || fail 'outer title omits project'
   assert_layout "$session" 200 50
   tmux resize-window -t "=$session" -x 201 -y 61
   assert_layout "$session" 201 61
@@ -163,13 +222,84 @@ case_refusals() {
   if (cd "$dir" && tdw) >/dev/null 2>&1; then fail "bare tdw without a session did not fail"; fi
   if (cd "$dir" && tdw cc oc) >/dev/null 2>&1; then fail "two agents were accepted"; fi
   if (cd "$dir" && tdw foo) >/dev/null 2>&1; then fail "unknown argument was accepted"; fi
-  if (cd "$dir" && PATH="$TMP/bin-min" tdw cx) >/dev/null 2>&1; then fail "missing agent was accepted"; fi
+  if (cd "$dir" && PATH="$TMP/bin-min" tdw cx) >"$TMP/error" 2>&1; then fail "missing agent was accepted"; fi
+  grep -q "required agent 'codex' is not installed" "$TMP/error" || fail 'missing-agent fixture failed for an unrelated dependency'
   if tmux has-session -t "=usage" 2>/dev/null; then fail "a refusal created a session"; fi
+}
+
+case_transaction_failures() {
+  local injection before sessions
+  project "$TMP/proj/failure"
+  sessions=$(tmux list-sessions -F '#{session_id} #{session_name}')
+  for injection in new-session:1:exit new-session:1:lost new-session:1:invalid \
+    set-option:1:exit split-window:1:exit split-window:2:exit split-window:1:invalid \
+    split-window:2:invalid display-message:2:exit select-pane:1:exit rename-session:1:exit; do
+    rm -f -- "$TMP"/count-*
+    before=$(wc -l <"$TMP/send.log")
+    if (cd "$TMP/proj/failure" && TDW_INJECT=$injection tdw cc) >"$TMP/error" 2>&1; then fail "$injection accepted"; fi
+    [[ $(wc -l <"$TMP/send.log") == "$before" ]] || fail "$injection sent keys"
+    [[ $(tmux list-sessions -F '#{session_id} #{session_name}') == "$sessions" ]] || fail "$injection left partial session or harmed existing one"
+  done
+  rm -f -- "$TMP"/count-*
+  if (cd "$TMP/proj/failure" && TDW_INJECT=split-window:1:foreign tdw cc) >"$TMP/error" 2>&1; then fail 'foreign replacement accepted'; fi
+  read -r sessions <"$TMP/foreign"
+  tmux has-session -t "=$sessions" || fail 'rollback killed foreign ownership'
+  grep -qF "creation $sessions" "$TMP/error" || fail 'refused rollback omitted the pending identity'
+  tmux kill-session -t "=$sessions"
+  rm -f -- "$TMP"/count-*
+  if (cd "$TMP/proj/failure" && TDW_CLEANUP_NOOP=1 TDW_INJECT=split-window:1:exit tdw cc) >"$TMP/error" 2>&1; then fail 'unverified cleanup accepted'; fi
+  sessions=$(command tmux -L "$SOCKET" list-sessions -F '#{session_name}' | grep '^tdw-pending-')
+  grep -qF "creation $sessions" "$TMP/error" || fail 'unverified cleanup omitted exact recovery identity'
+  tmux kill-session -t "=$sessions"
+}
+
+case_reused_ids() {
+  local original=$SOCKET SOCKET=$SOCKET injection before index=0
+  project "$TMP/proj/replaced"
+  for injection in set-option:1:replace set-option:2:replace set-option:3:replace set-option:4:replace \
+    split-window:1:replace split-window:2:replace display-message:2:replace select-pane:1:replace rename-session:1:replace send-keys:1:replace; do
+    index=$((index + 1)); SOCKET="$original-reuse-$index"
+    rm -f -- "$TMP"/count-*
+    before=$(wc -l <"$TMP/send.log")
+    if (cd "$TMP/proj/replaced" && TDW_INJECT=$injection tdw cc) >"$TMP/error" 2>&1; then fail "$injection accepted reused IDs"; fi
+    command tmux -L "$SOCKET" list-panes -t =foreign -F '#{session_id}|#{window_id}|#{pane_id}|#{session_name}|#{pane_active}|#{@dw_root}|#{TDW_OWNER}|#{automatic-rename}|#{allow-rename}|#{set-titles-string}' >"$TMP/replacement-after"
+    cmp "$TMP/replacement-before" "$TMP/replacement-after" || fail "$injection mutated the replacement"
+    [[ $(wc -l <"$TMP/send.log") == "$before" ]] || fail "$injection sent input to reused panes"
+    grep -qF "creation $(<"$TMP/replaced-token")" "$TMP/error" || fail "$injection omitted exact recovery identity"
+    command tmux -L "$SOCKET" kill-server
+  done
+}
+
+case_concurrent() {
+  local first second before
+  project "$TMP/proj/concurrent"
+  before=$(wc -l <"$TMP/send.log")
+  (cd "$TMP/proj/concurrent" && tdw cc) >"$TMP/first.log" 2>&1 & first=$!
+  (cd "$TMP/proj/concurrent" && tdw oc) >"$TMP/second.log" 2>&1 & second=$!
+  wait "$first" || fail 'first concurrent launcher failed'
+  wait "$second" || fail 'second concurrent launcher failed'
+  [[ $(wc -l <"$TMP/send.log") == $((before + 4)) ]] || fail 'concurrent launch sent more than one command set'
+  assert_layout concurrent 200 50
+}
+
+case_quoting() {
+  local session="quote's \$name;work" dir="$TMP/proj/quote's \$name;work" i
+  project "$dir"
+  (cd "$dir" && EDITOR=$'printf "%s\\n" "editor\'s \\$value; literal"' tdw cc) || fail 'quoted creation failed'
+  for ((i = 0; i < 40; i++)); do
+    if tmux capture-pane -p -t "=$session:.1" | grep -qxF "editor's \$value; literal"; then return 0; fi
+    sleep 0.1
+  done
+  fail 'server-side guard changed literal command quoting'
 }
 
 case_layout
 case_continue_forms
 case_reattach_and_collision
 case_refusals
+case_transaction_failures
+case_reused_ids
+case_concurrent
+case_quoting
 case_inside_tmux
 printf 'ok:   tdw builds equal splits outside and inside tmux, survives resizing, focuses and continues agents, re-attaches, and refuses bad input\n'

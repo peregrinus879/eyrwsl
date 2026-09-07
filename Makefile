@@ -27,7 +27,9 @@ TWIN_SPECS := nvim/.config/nvim/lua/plugins/obsidian.lua \
   yazi/.config/yazi/yazi.toml \
   scripts/update-references.sh \
   tests/update-references.sh \
-  tests/tdw.sh
+  tests/tdw.sh \
+  tests/hdw.sh \
+  tests/fixtures/herdr
 
 .PHONY: help require-host require-clone stow unstow dry-run restow lint check twins twins-pair verify test clean refs wt-diff wt-push
 

@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""A local Herdr protocol fixture. Never starts a terminal or an agent."""
+import json
+import os
+from pathlib import Path
+import sys
+
+state_path = Path(os.environ["HDW_FIXTURE_STATE"])
+state = json.loads(state_path.read_text())
+args = sys.argv[1:]
+key = " ".join(args[:2])
+state.setdefault("calls", []).append(args)
+count = state.setdefault("counts", {}).get(key, 0) + 1
+state["counts"][key] = count
+fault = os.environ.get("HDW_INJECT", "").split(":")
+mode = fault[-1] if fault[:2] == [key, str(count)] else ""
+
+
+def public_number(number):
+    alphabet = "123456789ABCDEFGHJKMNPQRSTVWXYZ0"
+    result = ""
+    while number:
+        number, digit = divmod(number - 1, len(alphabet))
+        result = alphabet[digit] + result
+    return result or "0"
+
+
+def finish(result=None, code=0):
+    if mode in ("replace", "replace-empty"):
+        # A new resource may reuse every public ID and label. Return a valid
+        # success reply from it, not a transport error or malformed object.
+        replacement = json.loads(json.dumps(state["workspaces"][wid]))
+        replacement["tokens"] = {} if mode == "replace-empty" else {"hdw_owner": "foreign"}
+        state["workspaces"][wid] = replacement
+        state["replacement"] = json.loads(json.dumps(replacement))
+        state["runs_at_replacement"] = len(state.get("runs", []))
+        if result is not None and "workspace" in result:
+            result["workspace"] = replacement
+    state_path.write_text(json.dumps(state))
+    if result is not None:
+        if mode == "invalid":
+            print("not JSON")
+        elif mode == "null":
+            print(json.dumps({"result": None}))
+        elif mode == "error":
+            print(json.dumps({"error": {"code": "fixture", "message": "injected"}}))
+        elif mode == "id":
+            print(json.dumps({"result": {"type": "pane_info", "pane": {"pane_id": ""}}}))
+        elif mode != "lost":
+            print(json.dumps({"id": "fixture", "result": result}))
+    sys.exit(1 if mode == "lost" else code)
+
+
+if mode == "exit":
+    finish(code=1)
+if key == "workspace close" and os.environ.get("HDW_CLOSE_FAIL") == "1":
+    finish(code=1)
+if key == "status server":
+    state_path.write_text(json.dumps(state))
+    print("status: stopped" if os.environ.get("HDW_COLD") == "1" and not state.get("running") else "status: running")
+    sys.exit(0)
+if args == ["server"]:
+    state["running"] = True
+    finish()
+if not args:
+    finish()
+workspaces = state["workspaces"]
+if key == "workspace list":
+    finish({"type": "workspace_list", "workspaces": list(workspaces.values())})
+if key == "workspace create":
+    wid = f"w{public_number(state['next'])}"
+    state["next"] += 1
+    tab = {"tab_id": f"{wid}:t1", "workspace_id": wid, "label": "shell"}
+    pane = {"pane_id": f"{wid}:p1", "workspace_id": wid, "tab_id": tab["tab_id"], "focused": True}
+    ws = {"workspace_id": wid, "label": args[args.index("--label") + 1], "focused": False,
+          "tabs": [tab], "panes": [pane], "tokens": {}}
+    workspaces[wid] = ws
+    finish({"type": "workspace_created", "workspace": ws, "tab": tab, "root_pane": pane})
+target = args[2]
+wid = target.split(":")[0]
+assert wid in workspaces, f"unchecked workspace: {target}"
+ws = workspaces[wid]
+if key == "workspace get":
+    finish({"type": "workspace_info", "workspace": ws})
+if key == "workspace report-metadata":
+    owner_fields = args[args.index("--token") + 1].split("=", 1)
+    ws["tokens"][owner_fields[0]] = owner_fields[1]
+    finish()
+if key == "workspace focus":
+    ws["focused"] = True
+    finish({"type": "workspace_info", "workspace": ws})
+if key == "workspace rename":
+    ws["label"] = args[3]
+    finish({"type": "workspace_info", "workspace": ws})
+if key == "workspace close":
+    del workspaces[wid]
+    finish({"type": "ok"})
+if key == "tab rename":
+    assert target == ws["tabs"][0]["tab_id"]
+    ws["tabs"][0]["label"] = args[3]
+    finish({"type": "tab_info", "tab": ws["tabs"][0]})
+pane = next(p for p in ws["panes"] if p["pane_id"] == target)
+if key == "pane get":
+    finish({"type": "pane_info", "pane": pane})
+if key == "pane split":
+    if mode == "foreign":
+        ws["label"] = "foreign"
+        ws["tokens"] = {}
+        finish(code=1)
+    assert args[args.index("--ratio") + 1] == "0.5"
+    assert "--no-focus" in args
+    expected = "right" if len(ws["panes"]) == 1 else "down"
+    assert args[args.index("--direction") + 1] == expected
+    assert target == ws["panes"][-1]["pane_id"]
+    new = dict(pane, pane_id=f"{wid}:p{public_number(len(ws['panes']) + 1)}", focused=False)
+    ws["panes"].append(new)
+    finish({"type": "pane_info", "pane": new})
+if key == "pane run":
+    assert len(ws["panes"]) == 3, "input sent before full layout"
+    state.setdefault("runs", []).append(args)
+    finish()
+raise AssertionError(f"unsupported fixture call: {args}")
