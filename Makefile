@@ -22,11 +22,13 @@ override export SELF_COMMIT := $(value SELF_COMMIT)
 override export PEER_COMMIT := $(value PEER_COMMIT)
 TWIN_SPECS := nvim/.config/nvim/lua/plugins/obsidian.lua \
   nvim/.config/nvim/lua/plugins/render-markdown.lua \
+  nvim/.config/nvim/lua/plugins/git-review.lua \
   bash/.config/bash/functions/tdw \
   bash/.config/bash/functions/hdw \
   yazi/.config/yazi/yazi.toml \
   scripts/update-references.sh \
   tests/update-references.sh \
+  tests/git-review.sh \
   tests/tdw.sh \
   tests/hdw.sh \
   tests/fixtures/herdr

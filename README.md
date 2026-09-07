@@ -60,6 +60,7 @@ Key ownership rules:
 
 - `nvim/` owns the full Neovim config, including the LazyVim bootstrap and lockfile plus `lua/config/options.lua` with the built-in WSL clipboard integration
 - `nvim/` includes the vault plugin specs (`obsidian.lua`, `render-markdown.lua`); the vault is expected at `~/Projects/vault` (override with `OBSIDIAN_VAULT`)
+- `nvim/` also carries `git-review.lua`, the contextual Snacks diff/status mappings shared with EyrArcHy
 - Bash supports additive machine overlays through `~/.config/bash-overlays/*`; the directory is optional and reserved for untracked machine-local additions
 - `mise/` owns the `~/.local/bin` wrappers for Claude Code, Codex, and OpenCode, the files `omarchy-mise-install` writes on Omarchy minus its release-cooldown override, and the `~/.config/mise/conf.d/eyrwsl.toml` fragment that turns on mise's paranoid mode; each wrapper installs its tool through mise on first run, and mise's other files (`~/.config/mise/config.toml`, `~/.local/share/mise`) are host state the wrappers create
 - The AI tools run as EyrAgents configures them; Omarchy's launch aliases are not carried
@@ -627,6 +628,12 @@ make -C /old/clone/path unstow
 
 Unstow removes this repository's links, not the clone or your generated host data; applications may lack their configuration until you stow again. It does not undo Windows Terminal deployment or remove optional EyrAgents. If the old clone is unavailable, recognized dangling links can be handled by `make clean`; a live link into a different clone must be resolved at its owner rather than forced away.
 
+## Git Review
+
+After stowing, start a fresh Neovim session once to load `git-review.lua`. `Space g d` shows staged and unstaged hunks, `Space g D` compares against origin, and `Space g s` shows status including untracked files. Each invocation uses the current file/directory's Git repository or the selected Neo-tree item, falling back to the displayed tree root when no item path exists. Symlink targets and linked worktrees are supported; switching files between repositories switches the review target without changing any editor directory.
+
+Empty or special non-explorer buffers use the current window's directory. A known non-Git file or explorer target warns instead of silently reviewing another repository. No recurring `:cd`/`:lcd` is needed for repository files or selected repository folders. Keep the ordinary picker review controls; do not use its stage/restore actions unless intended.
+
 ## Verify
 
 Workspace fixtures exercise isolated tmux servers with fake agents and a Python-backed Herdr model. They cover creation, ownership, failure recovery and concurrency without using running user workspaces or real agents; rendered UI and actual-host activation remain separate checks.
@@ -640,8 +647,6 @@ After stowing or changing owned packages:
 
 Complete these manual fresh-session checks:
 
-- With disposable local source/destination directories, start `rsw <source> <destination>`, note its PID/log path, and confirm changes during a transfer eventually arrive. Readiness is not sync success: inspect logs for transfer/monitor failures and retries. Reconciliation is checked between transfers, 60 seconds after the last successful completion. Monitor death stops the watcher after the current transfer returns and requires inspection/restart; a stalled transfer can delay this indefinitely. `lsw` and `dsw` manage only watchers started by this implementation; do not assume an older watcher stopped. No `--delete` is used, so destination-only files remain.
-- In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
 - Confirm the core symlinks and local Git identity exist: `test -L ~/.bashrc && test -L ~/.config/starship.toml && test -L ~/.config/nvim/lua/config/options.lua && test -f ~/.config/git/config.local`
 - Start a fresh shell and confirm Bash, Starship, and Tmux load without errors.
 - Confirm `printenv OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` and `printenv OPENCODE_ENABLE_EXA` each print `1`.
@@ -649,9 +654,12 @@ Complete these manual fresh-session checks:
 - Confirm `type tdw` and `type hdw` show the workspace functions. From a project directory, `<tdw|hdw> <cc|cx|oc> [-c]` creates a project-named session/workspace with a new window/tab named `claude`, `codex`, or `opencode`; `-c` continues that agent's last conversation. AI stays full-height left, editor/shell equally stacked right, with equal columns and agent focus. Bare invocation preserves existing workspace names/layouts while attaching or focusing. New tmux titles retain host, project session, and agent window as `#h:#S:#W`.
 - Workspace creation is serialized and validates the full layout before sending input; failures stop clearly and cleanup targets only that invocation's creation. Herdr starts headless when needed; failed startup returns failure with manual-start guidance, not a plain-attach success. If rollback is unverified, inspect the reported pending identity and any retained `hdw` roots snapshot before retrying; do not delete unfamiliar workspaces or recovery files.
 - Confirm `type hdl`, `type hdlm`, and `type hsl` show the other Herdr workspace functions. `hds` is intentionally unavailable because it requires Hunk.
+- In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
+- With disposable local source/destination directories, start `rsw <source> <destination>`, note its PID/log path, and confirm changes during a transfer eventually arrive. Readiness is not sync success: inspect logs for transfer/monitor failures and retries. Reconciliation is checked between transfers, 60 seconds after the last successful completion. Monitor death stops the watcher after the current transfer returns and requires inspection/restart; a stalled transfer can delay this indefinitely. `lsw` and `dsw` manage only watchers started by this implementation; do not assume an older watcher stopped. No `--delete` is used, so destination-only files remain.
 - Confirm `mise ls claude codex opencode` lists an installed version of each tool, and `command -v claude codex opencode` resolves every one under `~/.local/share/mise` (interactive shells, through `mise activate`) or to its `~/.local/bin` wrapper; `make verify` fails when a tool is missing from mise or resolves elsewhere.
 - Confirm `mise settings get paranoid` prints `true` and `mise settings get minimum_release_age` reports that the setting is not set, so the 24-hour default applies; `make verify` checks paranoid mode in full mode.
 - Run `nvim` once and confirm plugins install successfully and Gruvbox loads.
+- Check Git review from files in two repositories and from a selected Neo-tree repository folder while the editor was launched in their non-Git parent; `Space g d` and `Space g s` must target the selection without changing `:pwd`.
 - In Neovim, verify both `+` and `*` registers with disposable ASCII, Arabic/CJK, accented and supplementary-plane text through a Windows application, including multiline/CRLF, empty contents, and trailing newlines. Paste strips every CR, normalizing CRLF to LF; this is not byte-for-byte preservation. The provider uses PowerShell with explicit UTF-8 and no profile for both directions, not `clip.exe`. Do not inspect pre-existing clipboard content; mocks are not evidence that this Windows boundary passed.
 - If the vault is synced to this machine, open a vault note and confirm obsidian.nvim loads (`<leader>oo` opens the note switcher).
 - In OpenCode, run `/theme` and confirm `system` is selected so the TUI inherits Windows Terminal's Gruvbox ANSI palette.
@@ -739,8 +747,6 @@ Expect two executable paths and a PowerShell version for the repository's host g
 
 A repo-root `Makefile` keeps the package list in one place and wraps the routine commands. `stow`, `unstow`, `restow`, `clean`, `verify`, and `wt-push` run on the WSL machine; `lint`, `check`, `twins`, `twins-pair`, and `refs` run anywhere:
 
-Every host-writing Make target checks host and deployed-clone ownership before mutation. Deployment goals are serialized within one Make invocation, including `make -j`; this is not rollback against I/O failure or independent concurrent deployments.
-
 - `make stow` / `make unstow` / `make dry-run` / `make restow` - the stow command sets over the package list, without directory folding
 - `make lint` - ShellCheck over the bash package, `scripts/`, and `tests/`; `.shellcheckrc` disables the upstream-derived warnings so new issues stand out
 - `make check` - repository-only checks: `scripts/verify.sh` in `repo` mode over every owned config, then every fixture suite (runs in CI)
@@ -753,11 +759,7 @@ Every host-writing Make target checks host and deployed-clone ownership before m
 - `make wt-diff` - diff the tracked Windows Terminal settings against the deployed Windows-side file (normalized with `jq`, since Windows Terminal rewrites key order)
 - `make wt-push` - after full-file review/approval, require active WSL2/interop and deployed-clone ownership, validate both settings files, back up a changed deployment, and atomically deploy the tracked file; direct `scripts/wt-diff.sh --push` has the same guard
 
-
-
-Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code, Codex, and OpenCode current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
-
-`nvim/.config/nvim/lazy-lock.json` is generated but tracked. Update it only through an intentional Lazy sync, review the pinned revision changes, verify a clean headless bootstrap, and commit the lockfile with the plugin-spec change that required it.
+Every host-writing Make target checks host and deployed-clone ownership before mutation. Deployment goals are serialized within one Make invocation, including `make -j`; this is not rollback against I/O failure or independent concurrent deployments.
 
 Before running `make refs`, preview with `bash scripts/update-references.sh --dry-run` and approve any new clone or remote repointing separately. The preview can query GitHub but does not fetch or establish conflict-free upstream parity. Routine authorized refreshes remain the sync skill's work; atomic fetch does not make the whole family update transactional.
 
@@ -766,6 +768,10 @@ Before running `make refs`, preview with `bash scripts/update-references.sh --dr
 Direct `scripts/wt-diff.sh --push` also checks host/clone ownership before discovering or reading the Windows destination. The diff-only mode remains read-only; the full-file replacement still requires explicit review as described in Setup.
 
 CI runs `make lint`, `make check`, and `twins-pair` on pushes to `main` and pull requests, using the peer default branch for normal runs. Manual workflow dispatch accepts an explicit full `peer_commit` only with `peer_reviewed=true`; it fetches peer objects without executing peer code and records both actual commits. This attestation is not publication authorization. For coordinated changes, verify the final published pair explicitly after both commits are available; a green check against an earlier peer is not final-pair evidence. Local `make twins` remains a worktree convenience check that can skip a missing sibling.
+
+Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code, Codex, and OpenCode current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
+
+`nvim/.config/nvim/lazy-lock.json` is generated but tracked. Update it only through an intentional Lazy sync, review the pinned revision changes, verify a clean headless bootstrap, and commit the lockfile with the plugin-spec change that required it.
 
 Periodically, review the local reference repos and official docs for upstream changes to owned packages, sync with `/omasync` or a manual comparison, and confirm every intentional difference is still documented in `DEVIATIONS.md`. Unresolved decisions, deferred work, active limitations, and dated evidence live in [docs/maintenance.md](docs/maintenance.md).
 
