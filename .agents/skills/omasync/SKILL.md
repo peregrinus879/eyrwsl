@@ -9,7 +9,7 @@ Source configs from reference repos and official docs, compare against EyrWSL, a
 
 ## Sources
 
-Local reference clones live under `~/Projects/quarry/`; `references.txt` at the repo root names the ones this repo needs, and the family union of every sibling's file defines the quarry (`make refs` clones, updates, and prunes to it):
+Local reference clones live under `~/Projects/quarry/`; `references.txt` names this repo's needs and the family union defines the maintained set. `make refs` creates missing entries only from this repo's manifest, updates existing family-listed clones to exact fetched-upstream parity, and reports but preserves unlisted clones:
 
 - `omarchy/` - main repo for bash, tmux, starship, git, fastfetch, btop, and editorconfig references; `make refs` keeps it on the upstream default branch, which upstream moves between releases, so pin EyrWSL release comparisons to tag `v4.0.0` (`git show v4.0.0:<path>`)
 - `omarchy-pkgs/` - package builds, including the Omarchy Neovim package
@@ -29,12 +29,12 @@ Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Referenc
 
 ## Workflow
 
-1. Run `make refs` first, every time: `scripts/update-references.sh` clones what `references.txt` lists and the quarry lacks, resolves each listed clone to its current GitHub location and repoints a moved remote, checks out the upstream default branch and fast-forwards it, and removes clean clones no family repository lists. Fix anything it reports before comparing, and when it reports a repointed origin, update that URL in `references.txt` and `DEVIATIONS.md` (Reference Sources). When this repo starts or stops using a reference, change `references.txt`; the clones follow. Then confirm Omarchy tag `v4.0.0` resolves in `omarchy/` (`git rev-parse v4.0.0^{commit}`). Updating the quarry is this skill's job, never H's preparation
+1. Before reference mutation, run `bash scripts/update-references.sh --dry-run` and review its scope. The preview can query GitHub through `gh api`, but does not fetch or prove upstream parity or absence of incoming conflicts. Obtain H's explicit approval for each new clone or remote repointing, and for any separately proposed destructive resolution; routine preservation-safe refreshes of existing declared clones remain the skill's work within shared authorization. Then run `make refs`. Atomic, non-forced fetches preserve existing local tags and annotations, import new tags, and prune only origin tracking branches; this is not a transaction across clones. Checkout/merge use `--no-overwrite-ignore` to preserve ignored files. Ahead/divergent branches and tag/file conflicts refuse that update; do not force or delete to obtain a pass. Unlisted clones are reported and kept. Resolve failed updates before comparing, without assuming earlier successful updates rolled back. If an approved origin move occurs, align its URL in `references.txt` and `DEVIATIONS.md`. Manifest changes define maintenance scope, not permission to create, repoint or delete unreviewed targets. Then confirm Omarchy tag `v4.0.0` resolves (`git rev-parse v4.0.0^{commit}`); retain the pinned release comparison.
 2. Compare reference repos against the packages owned by EyrWSL
 3. For Omarchy-derived packages, compare against tag `v4.0.0` in `omarchy/`, plus `omarchy-pkgs/` and `gruvbox.nvim/`; never substitute moving-branch contents for the pinned release comparison
 4. For non-Omarchy tools, compare Yazi against `yazi/` and official docs, and the vault plugin specs against `obsidian.nvim/` and the render-markdown.nvim README
-5. Check the WSL and Windows contract against official WSL, Arch-on-WSL, and Windows Terminal docs: WSL2, Windows interop, `clip.exe`, `powershell.exe`, Windows-side font ownership, and `windows-terminal/settings.json` against `terminal/`; run `make wt-diff` when Terminal settings are involved
-6. Check package ownership at maintenance time: confirm `pacman -Si mise` still reports an official repository and `mise ls claude codex opencode` lists each tool, compare the `mise/.local/bin` wrappers against the heredoc in `git show v4.0.0:bin/omarchy-mise-install` (the dropped `MISE_MINIMUM_RELEASE_AGE=0` export is the one intended difference) and the tool list in `install/user/mise.sh`, re-probe `pacman -Si herdr` before retaining its canonical installer, and keep Yazi media helpers explicitly optional
+5. Check the WSL and Windows contract against official WSL, Arch-on-WSL, and Windows Terminal docs: WSL2 with active interop (enabled `binfmt_misc` and `WSLInterop` or `WSLInterop-late`, plus the bounded no-profile PowerShell probe), `clip.exe`/`powershell.exe` resolution, Windows-side font ownership, and `windows-terminal/settings.json` against `terminal/`; run `make wt-diff` when Terminal settings are involved
+6. Check package ownership at maintenance time: confirm `pacman -Si mise` still reports an official repository and `mise ls claude codex opencode` lists each tool, compare the `mise/.local/bin` wrappers against the heredoc in `git show v4.0.0:bin/omarchy-mise-install` and the tool list in `install/user/mise.sh`, accounting for the documented v4.0.2 `--quiet` adoption and omitted `MISE_MINIMUM_RELEASE_AGE=0` export without silently moving the comparison pin. Re-probe `pacman -Si herdr` before retaining its canonical installer, and keep Yazi media helpers explicitly optional
 7. For each difference, classify it:
    - **Intentional deviation**: documented in `DEVIATIONS.md`, should stay different
    - **New upstream addition**: added upstream after the last sync, should be reviewed for inclusion
@@ -50,6 +50,7 @@ Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Referenc
 - `README.md`, `AGENTS.md`, and `DEVIATIONS.md` reflect any ownership, setup, or workflow changes
 - `make refs` passed in this run; Omarchy release comparisons still use tag `v4.0.0`
 - Every retained difference is still documented in `DEVIATIONS.md`
+- For twin changes, `make twins` checks local worktrees; after both commits exist, `twins-pair` checks the exact full `SELF_COMMIT`/`PEER_COMMIT` pair at `SIBLING`. Inputs remain literal data and peer code never executes. Hosted final-pair evidence must name the final published commits; earlier-peer CI is not a substitute or publication authorization
 - Official-package probes and WSL/Windows gates reflect current sources, and `make wt-diff` is clean when Terminal settings are involved
 - The final summary distinguishes adopted changes, rejected changes, and intentional retained differences
 

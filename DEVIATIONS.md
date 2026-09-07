@@ -67,6 +67,8 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - Stow runs with `--no-folding`, so every managed parent stays a real directory that tools may write into and only leaf files are links.
 - `/omasync` owns reference-clone maintenance and upstream comparison; `docs/maintenance.md` owns unresolved decisions, deferred work, active limitations, and dated evidence.
 - Agent-tool verification approvals are handled by session or shared EyrAgents policy rather than repo-root project allowlists.
+- `make refs` reports and keeps stale clones; listed default branches must reach exact fetched upstream parity by fast-forward. Atomic, non-forced fetches preserve existing local tags and annotations, import new tags, and prune only origin tracking branches. Checkout/merge use `--no-overwrite-ignore` so ignored files in listed clones are not overwritten. Ahead-only/divergent branches and tag/file conflicts refuse; resolution and any stale-clone disposal need separate review, including all refs, stashes, and ignored/untracked content before disposal.
+- Local `make twins` checks worktree copies and can skip a missing sibling. `twins-pair` compares committed blobs at full `SELF_COMMIT` and `PEER_COMMIT` IDs without executing peer code. Those IDs and `SIBLING` travel as literal data, not Make expressions or shell source. CI normally uses the peer default branch; manual dispatch accepts an explicit full `peer_commit` only with `peer_reviewed=true` and records both actual commits. Publication evidence must validate the final published pair; operator attestation is not authorization to publish.
 
 ### Theme
 

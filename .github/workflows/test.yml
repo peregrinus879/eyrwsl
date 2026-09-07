@@ -4,6 +4,16 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      peer_commit:
+        description: "Reviewed EyrArcHy commit (full 40-character SHA); empty checks its default branch"
+        type: string
+        default: ""
+      peer_reviewed:
+        description: "I reviewed the exact peer commit above for this pair"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -13,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install prerequisites
         run: |
           sudo apt-get update
@@ -26,6 +38,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Clone EyrArcHy
-        run: git clone --depth 1 https://github.com/peregrinus879/eyrarchy.git "$RUNNER_TEMP/eyrarchy"
-      - run: make twins SIBLING="$RUNNER_TEMP/eyrarchy"
+        with:
+          persist-credentials: false
+      - name: Validate Exact Twin Pair
+        env:
+          PEER_COMMIT: ${{ inputs.peer_commit }}
+          PEER_REVIEWED: ${{ inputs.peer_reviewed }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$PEER_COMMIT" ]]; then
+            [[ "$PEER_COMMIT" =~ ^[0-9a-f]{40}$ && "$PEER_REVIEWED" == true ]] || {
+              echo 'FAIL: an explicit peer requires a full commit SHA and peer_reviewed=true'
+              exit 1
+            }
+          fi
+          # Read peer Git objects only. Never load its Makefile, scripts, or workflows.
+          peer="$RUNNER_TEMP/eyrarchy"
+          git init -q "$peer"
+          git -C "$peer" fetch -q --no-tags --depth=1 https://github.com/peregrinus879/eyrarchy.git "${PEER_COMMIT:-HEAD}"
+          actual=$(git -C "$peer" rev-parse 'FETCH_HEAD^{commit}')
+          [[ -z "$PEER_COMMIT" || "$actual" == "$PEER_COMMIT" ]] || { echo 'FAIL: fetched peer is not the reviewed commit'; exit 1; }
+          self=$(git rev-parse HEAD)
+          printf 'Twin pair: eyrarchy %s, eyrwsl %s\n' "$actual" "$self" >> "$GITHUB_STEP_SUMMARY"
+          make twins-pair SELF_COMMIT="$self" PEER_COMMIT="$actual" SIBLING="$peer"

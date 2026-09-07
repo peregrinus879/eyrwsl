@@ -12,14 +12,20 @@
 #   - every clone the union lists is updated: its origin is resolved through
 #     the GitHub API, which follows transfers and renames, and repointed when
 #     it moved; the upstream default branch is checked out and fast-forwarded
-#     after a fetch with prune and forced tags (upstream moves rolling tags)
-#   - a clone no family repository lists is removed when it is clean and every
-#     local commit is on a remote-tracking ref; otherwise it is reported
+#     after a fetch that refreshes/prunes only origin's tracking branches and
+#     imports new tags without pruning or replacing existing local tags;
+#     a moved upstream tag refuses the fetch and requires separate review
+#   - a clone no family repository lists is reported and kept, regardless of
+#     its branches, tags, stash, ignored files, or apparent cleanliness
 # Manifests that disagree on a URL or a malformed line stop the run before
 # anything changes. A manifest URL that no longer names the resolved location,
 # an origin that resolves elsewhere than its manifest, a clone with local
-# changes to tracked files, or a checkout that cannot fast-forward fails the
-# run, so the skill never compares against a quarry this run did not settle.
+# changes to tracked files, or a checkout that cannot reach exact fetched
+# upstream parity by fast-forwarding fails the run, so the skill never compares
+# against a quarry this run did not settle. Incompatible fetch refspecs/tag
+# options refuse before updating that clone. Checkout and merge refuse ignored
+# file collisions rather than overwriting local bytes. Configured branch mappings must
+# keep the same branch name under refs/remotes/origin, never local branches or tags.
 # Non-GitHub remotes skip the transfer lookup and are fetched as they are.
 # Usage: update-references.sh [--dry-run]
 set -uo pipefail
@@ -34,6 +40,7 @@ case ${1:-} in
   --dry-run) dry_run=1 ;;
   *) printf 'usage: update-references.sh [--dry-run]\n' >&2; exit 2 ;;
 esac
+[[ $# -le 1 ]] || { printf 'usage: update-references.sh [--dry-run]\n' >&2; exit 2; }
 [[ -f $repo/$manifest ]] || { printf 'FAIL: manifest is missing: %s/%s\n' "$repo" "$manifest" >&2; exit 1; }
 command -v git >/dev/null || { printf 'FAIL: required tool is missing: git\n' >&2; exit 1; }
 
@@ -91,7 +98,25 @@ resolve_slug() { # owner/repo -> current owner/repo through the API
 }
 
 update_clone() { # dir name manifest-url
-  local clone=$1 name=$2 wanted=$3 url slug current wanted_slug wanted_current new_url default branch before after
+  local clone=$1 name=$2 wanted=$3 url slug current wanted_slug wanted_current new_url default branch before after upstream
+  local refspecs refspec source tagopt status
+  refspecs=$(git -C "$clone" config --get-all remote.origin.fetch); status=$?
+  if ((status > 1)); then problem "$name: cannot read origin fetch configuration; left alone"; return; fi
+  while IFS= read -r refspec; do
+    [[ -n $refspec ]] || continue
+    refspec=${refspec#+}
+    source=${refspec%%:*}
+    if [[ $source != refs/heads/* || ${refspec#*:} != "refs/remotes/origin/${source#refs/heads/}" ]]; then
+      problem "$name: incompatible origin fetch refspec; only same-name branches under refs/remotes/origin are supported; left alone"
+      return
+    fi
+  done <<<"$refspecs"
+  tagopt=$(git -C "$clone" config --get remote.origin.tagOpt); status=$?
+  if ((status > 1)); then problem "$name: cannot read origin tag configuration; left alone"; return; fi
+  case $tagopt in
+    ''|--tags|--no-tags) ;;
+    *) problem "$name: incompatible origin tagOpt; left alone"; return ;;
+  esac
   url=$(git -C "$clone" remote get-url origin 2>/dev/null) || { problem "$name: no origin remote"; return; }
 
   if slug=$(github_slug "$url"); then
@@ -131,28 +156,46 @@ update_clone() { # dir name manifest-url
   fi
 
   if ((dry_run)); then
-    printf 'plan: %s: set-head, fetch, and fast-forward to the upstream default branch (now on %s)\n' \
+    printf 'plan: %s: fetch preserving local tags, set-head, and fast-forward to the upstream default branch (now on %s)\n' \
       "$name" "$(git -C "$clone" branch --show-current)"
     return
   fi
 
+  # Empty refmap ignores inherited forced mappings; the explicit branch map
+  # bounds pruning to origin. --tags adds tags without making them pruneable.
+  # Atomic ref updates refuse moved tags, including annotation-only changes.
+  git -C "$clone" -c fetch.pruneTags=false -c remote.origin.pruneTags=false \
+    fetch --atomic --prune --no-prune-tags --no-force --tags --refmap= \
+    origin 'refs/heads/*:refs/remotes/origin/*' || {
+      problem "$name: fetch refused or failed; existing local tags kept, tag conflicts require separate review"
+      return
+    }
   git -C "$clone" remote set-head origin -a >/dev/null 2>&1 || { problem "$name: cannot resolve the upstream default branch"; return; }
   default=$(git -C "$clone" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null) || { problem "$name: origin/HEAD is unset"; return; }
   default=${default#origin/}
-  git -C "$clone" fetch -q --prune --prune-tags --tags --force origin || { problem "$name: fetch failed"; return; }
+  upstream=$(git -C "$clone" rev-parse --verify "refs/remotes/origin/$default^{commit}") || { problem "$name: fetched default branch is missing"; return; }
+
+  # --ff-only also succeeds when the local branch is ahead. Refuse that case
+  # before switching branches; success means equality with this fetched OID.
+  if git -C "$clone" show-ref --verify -q "refs/heads/$default" &&
+    ! git -C "$clone" merge-base --is-ancestor "refs/heads/$default" "$upstream"; then
+    problem "$name: $default is ahead of or diverged from origin/$default; local branch and checkout left alone"
+    return
+  fi
 
   branch=$(git -C "$clone" branch --show-current)
   if [[ $branch != "$default" ]]; then
     if git -C "$clone" show-ref --verify -q "refs/heads/$default"; then
-      git -C "$clone" checkout -q "$default" || { problem "$name: cannot check out $default"; return; }
+      git -C "$clone" checkout -q --no-overwrite-ignore "$default" || { problem "$name: cannot check out $default"; return; }
     else
-      git -C "$clone" checkout -q -b "$default" --track "origin/$default" || { problem "$name: cannot create $default"; return; }
+      git -C "$clone" checkout -q --no-overwrite-ignore -b "$default" --track "origin/$default" || { problem "$name: cannot create $default"; return; }
     fi
     printf 'ok:   %s: switched %s -> %s\n' "$name" "${branch:-detached}" "$default"
   fi
 
   before=$(git -C "$clone" rev-parse --short HEAD)
-  if git -C "$clone" merge -q --ff-only "origin/$default" 2>/dev/null; then
+  if git -C "$clone" merge -q --ff-only --no-overwrite-ignore "$upstream" &&
+    [[ $(git -C "$clone" rev-parse HEAD) == "$upstream" ]]; then
     after=$(git -C "$clone" rev-parse --short HEAD)
     if [[ $before == "$after" ]]; then
       printf 'ok:   %s: %s up to date at %s\n' "$name" "$default" "$after"
@@ -160,27 +203,12 @@ update_clone() { # dir name manifest-url
       printf 'ok:   %s: %s fast-forwarded %s -> %s\n' "$name" "$default" "$before" "$after"
     fi
   else
-    problem "$name: $default has diverged from origin/$default; left alone"
+    problem "$name: cannot fast-forward $default to fetched upstream (divergence or local file conflict); inspect before retrying"
   fi
 }
 
-remove_stale() { # dir name
-  local clone=$1 name=$2
-  if [[ -n $(git -C "$clone" status --porcelain) ]]; then
-    problem "$name: no family repository lists it, but it has local changes; remove by hand"
-    return
-  fi
-  if [[ -z $(git -C "$clone" branch -r --contains HEAD 2>/dev/null) ]]; then
-    problem "$name: no family repository lists it, but HEAD is on no remote branch; remove by hand"
-    return
-  fi
-  if ((dry_run)); then
-    printf 'plan: %s: remove, no family repository lists it\n' "$name"
-  else
-    [[ -n $name && $clone == "$quarry/$name" ]] || { problem "$name: refusing to remove an unexpected path"; return; }
-    rm -rf -- "$clone" || { problem "$name: cannot remove"; return; }
-    printf 'ok:   %s: removed, no family repository lists it\n' "$name"
-  fi
+report_stale() { # name
+  printf 'note: %s: stale reference, no family repository lists it; kept (review all refs, stashes, and ignored/untracked files before any manual removal)\n' "$1"
 }
 
 if [[ ! -d $quarry ]]; then
@@ -205,7 +233,7 @@ for name in $(printf '%s\n' "${!family[@]}" | sort); do
   fi
 done
 
-# Update every listed clone; remove the unlisted ones.
+# Update every listed clone; report and keep all unlisted ones.
 for clone in "$quarry"/*/; do
   clone=${clone%/}
   [[ -d $clone ]] || continue
@@ -217,7 +245,7 @@ for clone in "$quarry"/*/; do
   if [[ -n ${family[$name]:-} ]]; then
     update_clone "$clone" "$name" "${family[$name]}"
   else
-    remove_stale "$clone" "$name"
+    report_stale "$name"
   fi
 done
 

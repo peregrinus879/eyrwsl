@@ -361,7 +361,7 @@ After deployment, confirm the default profile resolves to `archlinux` and the fo
 
 After stowing or changing owned packages:
 
-- Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, tmux, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures), and GitHub Actions runs them on every push to `main` and every pull request, plus `make twins` against a fresh EyrArcHy clone.
+- Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, tmux, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures). GitHub Actions runs them on pushes to `main` and pull requests, plus an exact committed twin-pair check against EyrArcHy's fetched default branch.
 - Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: the active WSL2/interop host guard first, then `lint`, `check`, and `twins`, followed by `scripts/verify.sh` in `full` mode (command baseline, the three AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
 
 Complete these manual fresh-session checks:
@@ -401,18 +401,25 @@ Every host-writing Make target checks host and deployed-clone ownership before m
 - `make lint` - ShellCheck over the bash package, `scripts/`, and `tests/`; `.shellcheckrc` disables the upstream-derived warnings so new issues stand out
 - `make check` - repository-only checks: `scripts/verify.sh` in `repo` mode over every owned config, then every fixture suite (runs in CI)
 - `make twins` - twin-file sync against the EyrArcHy clone (`SIBLING`, default `~/Projects/eyrie/eyrarchy`); a missing sibling is reported as a skipped check
+- `make twins-pair SELF_COMMIT=<full-sha> PEER_COMMIT=<full-sha> SIBLING=<peer-object-repo>` - read-only twin comparison of two exact full 40-character commit IDs; all three inputs remain literal data, missing objects/files fail, and no peer code executes. Replace the placeholders and quote the peer path; do not type angle brackets
 - `make verify` - `lint`, `check`, and `twins`, then `scripts/verify.sh` in `full` mode (host, command baseline, mise-managed AI tools, deployment with real managed parents, no-reply identity, and every owned config); refuses off the WSL host
 - `make test` - fake-home deployment, ownership, verifier, Windows Terminal, and reference-clone fixtures; the loop stops on the first failing suite
 - `make clean` - WSL-only guarded stow preparation (`scripts/prepare-stow.sh`); leftover folded links and dangling clone links only, aborts before removing anything otherwise
-- `make refs` - clone, fast-forward, and prune the reference clones under `~/Projects/quarry` to the family's `references.txt` files, repointing moved GitHub remotes (`/omasync` step 1)
+- `make refs` - clone and fast-forward listed references to exact fetched upstream parity, repointing moved GitHub remotes; report and keep stale clones, never auto-delete them (`/omasync` step 1)
 - `make wt-diff` - diff the tracked Windows Terminal settings against the deployed Windows-side file (normalized with `jq`, since Windows Terminal rewrites key order)
 - `make wt-push` - after full-file review/approval, require active WSL2/interop and deployed-clone ownership, validate both settings files, back up a changed deployment, and atomically deploy the tracked file; direct `scripts/wt-diff.sh --push` has the same guard
 
-`.github/workflows/test.yml` runs `make lint`, `make check`, and `make twins` on every push to `main` and every pull request.
+
 
 Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code, Codex, and OpenCode current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
 
 `nvim/.config/nvim/lazy-lock.json` is generated but tracked. Update it only through an intentional Lazy sync, review the pinned revision changes, verify a clean headless bootstrap, and commit the lockfile with the plugin-spec change that required it.
+
+Before running `make refs`, preview with `bash scripts/update-references.sh --dry-run` and approve any new clone or remote repointing separately. The preview can query GitHub but does not fetch or establish conflict-free upstream parity. Routine authorized refreshes remain the sync skill's work; atomic fetch does not make the whole family update transactional.
+
+`make refs` refuses ahead-only/divergent listed default branches instead of calling them current. Its atomic, non-forced fetch preserves existing local tags and annotations, imports new tags, and prunes only origin tracking branches. Checkout and merge use `--no-overwrite-ignore`, preserving ignored files in listed clones. Tag/file conflicts refuse that update and require separate review; do not force a tag replacement or delete local files to make it pass. Stale references are informational and require separate review of all refs, stashes, and ignored/untracked files before any manual removal.
+
+CI runs `make lint`, `make check`, and `twins-pair` on pushes to `main` and pull requests, using the peer default branch for normal runs. Manual workflow dispatch accepts an explicit full `peer_commit` only with `peer_reviewed=true`; it fetches peer objects without executing peer code and records both actual commits. This attestation is not publication authorization. For coordinated changes, verify the final published pair explicitly after both commits are available; a green check against an earlier peer is not final-pair evidence. Local `make twins` remains a worktree convenience check that can skip a missing sibling.
 
 Periodically, review the local reference repos and official docs for upstream changes to owned packages, sync with `/omasync` or a manual comparison, and confirm every intentional difference is still documented in `DEVIATIONS.md`. Unresolved decisions, deferred work, active limitations, and dated evidence live in [docs/maintenance.md](docs/maintenance.md).
 
