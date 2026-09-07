@@ -748,7 +748,7 @@ Expect two executable paths and a PowerShell version for the repository's host g
 A repo-root `Makefile` keeps the package list in one place and wraps the routine commands. `stow`, `unstow`, `restow`, `clean`, `verify`, and `wt-push` run on the WSL machine; `lint`, `check`, `twins`, `twins-pair`, and `refs` run anywhere:
 
 - `make stow` / `make unstow` / `make dry-run` / `make restow` - the stow command sets over the package list, without directory folding
-- `make lint` - ShellCheck over the bash package, `scripts/`, and `tests/`; `.shellcheckrc` disables the upstream-derived warnings so new issues stand out
+- `make lint` - ShellCheck 0.11.0 or newer over the bash package, `scripts/`, and `tests/`; `.shellcheckrc` disables the upstream-derived warnings so new issues stand out
 - `make check` - repository-only checks: `scripts/verify.sh` in `repo` mode over every owned config, then every fixture suite (runs in CI)
 - `make twins` - twin-file sync against the EyrArcHy clone (`SIBLING`, default `~/Projects/eyrie/eyrarchy`); a missing sibling is reported as a skipped check
 - `make twins-pair SELF_COMMIT=<full-sha> PEER_COMMIT=<full-sha> SIBLING=<peer-object-repo>` - read-only twin comparison of two exact full 40-character commit IDs; all three inputs remain literal data, missing objects/files fail, and no peer code executes. Replace the placeholders and quote the peer path; do not type angle brackets
@@ -768,6 +768,8 @@ Before running `make refs`, preview with `bash scripts/update-references.sh --dr
 Direct `scripts/wt-diff.sh --push` also checks host/clone ownership before discovering or reading the Windows destination. The diff-only mode remains read-only; the full-file replacement still requires explicit review as described in Setup.
 
 CI runs `make lint`, `make check`, and `twins-pair` on pushes to `main` and pull requests, using the peer default branch for normal runs. Manual workflow dispatch accepts an explicit full `peer_commit` only with `peer_reviewed=true`; it fetches peer objects without executing peer code and records both actual commits. This attestation is not publication authorization. For coordinated changes, verify the final published pair explicitly after both commits are available; a green check against an earlier peer is not final-pair evidence. Local `make twins` remains a worktree convenience check that can skip a missing sibling.
+
+CI uses the checksum-verified upstream ShellCheck 0.11.0 release instead of the runner's older distribution package.
 
 Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code, Codex, and OpenCode current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
 
