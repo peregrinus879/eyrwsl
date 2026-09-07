@@ -1,0 +1,137 @@
+#!/bin/bash
+# Fake local monitor/transfer. No network and no actual rsync invocation.
+set -euo pipefail
+if [[ ${1:-} == --run ]]; then
+  exec python3 - "$2" <<'PY'
+import ctypes
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+# Adopt detached descendants. Direct children retain their PIDs until reaped;
+# signal each fresh child list before waitpid, never a cached or global PID set.
+signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+if ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0) != 0:
+    raise OSError(ctypes.get_errno(), "fixture subreaper unavailable")
+root = Path(tempfile.mkdtemp(prefix="rsw-fixture."))
+child_list = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
+interrupted = 0
+status = 1
+clean = False
+
+
+def interrupt(signum, _frame):
+    global interrupted
+    interrupted = signum
+
+
+for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+    signal.signal(sig, interrupt)
+try:
+    read_fd, write_fd = os.pipe()
+    child = subprocess.Popen(
+        ["bash", "-c", 'read -r -u "$1" || exit; shift; exec "$@"',
+         "rsw-fixture-start", str(read_fd), "bash", sys.argv[1], "--fixture-child", str(root)],
+        pass_fds=(read_fd,), start_new_session=True,
+    )
+    os.close(read_fd)
+    (root / "test.pid").write_text(str(child.pid) + "\n")
+    os.write(write_fd, b"start\n")
+    os.close(write_fd)
+    deadline = time.monotonic() + 100
+    while child.poll() is None and not interrupted and time.monotonic() < deadline:
+        time.sleep(0.05)
+    status = child.returncode if child.returncode is not None else 124
+    if status < 0:
+        status = 128 - status
+finally:
+    try:
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline:
+                children = [int(pid) for pid in child_list.read_text().split()]
+                with (root / "cleanup.jsonl").open("a") as log:
+                    log.write(json.dumps({"signal": int(sig), "children": children}) + "\n")
+                for pid in children:
+                    os.kill(pid, sig)
+                while True:
+                    try:
+                        pid, _ = os.waitpid(-1, os.WNOHANG)
+                    except ChildProcessError:
+                        pid = 0
+                    if not pid:
+                        break
+                if not child_list.read_text().strip():
+                    clean = True
+                    break
+                time.sleep(0.05)
+            if clean:
+                break
+    except Exception as error:
+        print(f"FAIL: fixture cleanup unverified: {error}", file=sys.stderr)
+    if clean:
+        shutil.rmtree(root)
+        print(f"ok:   fixture descendants reaped; removed {root}")
+    else:
+        print(f"FAIL: fixture cleanup unverified; retained {root}", file=sys.stderr)
+        status = 1
+sys.exit(128 + interrupted if interrupted else status)
+PY
+fi
+if [[ ${1:-} == --stubborn-child ]]; then
+  # Finite even if the guard breaks; outlives the failed watcher and ignores TERM.
+  trap '' TERM
+  IFS= read -r identity <"/proc/$$/stat"
+  read -r -a fields <<<"${identity##*) }"
+  printf '%s %s\n' "$$" "${fields[19]}" >"$RSW_FIXTURE/cleanup-child"
+  exec sleep 15
+fi
+case ${0##*/} in
+  inotifywait)
+    printf '%s\n' "$$" >"$RSW_FIXTURE/monitor.pid"
+    [[ " $* " == *' -m '* ]] || exit 99
+    if [[ ${RSW_WATCH_FAIL:-0} == 1 ]]; then
+      "$0" --stubborn-child >/dev/null 2>&1 </dev/null &
+      for ((i = 0; i < 100; i++)); do
+        [[ ! -s $RSW_FIXTURE/cleanup-child ]] || break
+        sleep 0.01
+      done
+      ((i < 100)) || exit 99
+      echo 'fixture watch limit reached' >&2
+      exit 1
+    fi
+    printf 'Setting up watches.\nWatches established.\n' >&2
+    while sleep 0.1; do
+      if [[ -f $RSW_FIXTURE/events ]]; then
+        rm -- "$RSW_FIXTURE/events"
+        for ((i = 0; i < 40; i++)); do printf 'MODIFY\n'; done
+      fi
+    done
+    ;;
+  rsync)
+    [[ $# == 4 && $1 == -a && $2 == -- ]] || exit 99
+    [[ $4 == 'simulated destination with spaces' ]] || exit 99
+    [[ $RSYNC_RSH == *ControlPersist=yes* ]] || exit 99
+    count=0
+    [[ ! -f $RSW_FIXTURE/count ]] || read -r count <"$RSW_FIXTURE/count"
+    count=$((count + 1))
+    printf '%s\n' "$count" >"$RSW_FIXTURE/count"
+    read -r pid <"$RSW_FIXTURE/monitor.pid"
+    kill -0 "$pid" || exit 99
+    cat -- "$3/value" >"$RSW_FIXTURE/copied"
+    if ((count == 1)); then
+      : >"$RSW_FIXTURE/transferring"
+      while [[ ! -e $RSW_FIXTURE/release ]]; do sleep 0.1; done
+    elif ((count == 2)); then
+      echo 'fixture transient transfer failure' >&2
+      exit 23
+    fi
+    ;;
+  *) exit 99 ;;
+esac

@@ -1,29 +1,108 @@
-# Rsync-on-change watchers: rsw starts one in the background, lsw lists, dsw stops
+# Rsync-on-change watchers: rsw starts one in the background, lsw lists, dsw stops.
+# The monitor and event consumer stay alive during transfers. A dirty marker
+# coalesces bursts; retries and reconciliation between transfers recover changes.
+_rsw_watch() {
+  local src=$1 dest=$2 state=$3 monitor i last=0 retry=0
+  trap 'exit 143' TERM HUP INT
+  trap 'trap "" TERM; kill -- -"$$" 2>/dev/null || true; wait "$monitor" 2>/dev/null || true; rm -f -- "$state/ready"; : >"$state/stopped"' EXIT
+  (
+    set -o pipefail
+    inotifywait -m -r -e modify,attrib,close_write,create,delete,move,delete_self,move_self \
+      --format '%e' -- "$src" 2>"$state/monitor.log" |
+      while IFS= read -r _; do : >"$state/dirty" || exit 1; done
+    printf 'rsw: monitor stopped; see %s/monitor.log\n' "$state" >&2
+    : >"$state/monitor.failed"
+  ) &
+  monitor=$!
+  for ((i = 0; i < 100; i++)); do
+    [[ ! -e $state/monitor.failed ]] || { cat -- "$state/monitor.log" >&2; return 1; }
+    if grep -q '^Watches established\.$' "$state/monitor.log" 2>/dev/null; then break; fi
+    sleep 0.1
+  done
+  ((i < 100)) || { echo 'rsw: monitor readiness timed out' >&2; return 1; }
+  printf '%s\n' "$$" >"$state/ready.tmp" && mv -- "$state/ready.tmp" "$state/ready" || return 1
+  : >"$state/dirty" || return 1
+  while :; do
+    [[ ! -e $state/monitor.failed ]] || { cat -- "$state/monitor.log" >&2; return 1; }
+    if ((SECONDS >= retry)) && { [[ -e $state/dirty ]] || ((SECONDS - last >= 60)); }; then
+      # Clear before the transfer, so changes during it schedule another pass.
+      rm -f -- "$state/dirty" || return 1
+      if rsync -a -- "$src/" "$dest"; then
+        last=$SECONDS
+        retry=$((SECONDS + 1))
+      else
+        printf 'rsw: transfer failed (%s -> %s); retrying in 5 seconds\n' "$src" "$dest" >&2
+        : >"$state/dirty" || return 1
+        retry=$((SECONDS + 5))
+      fi
+    fi
+    sleep 1
+  done
+}
+
 rsw() {
   (( $# != 2 )) && echo "Usage: rsw <source> <destination>" && return 1
-  local src="${1%/}" dest="$2"
+  local src dest=$2 tool state_dir state sockets rsh i pid
+  [[ -n $dest && -d $1 ]] || { echo 'rsw: source must be a directory and destination nonempty' >&2; return 1; }
+  # Preserve pathname newlines that command substitution would otherwise trim.
+  src=$(CDPATH='' builtin cd -- "$1" && pwd -P && printf '.') || return 1
+  src=${src%$'\n.'}
+  for tool in rsync inotifywait setsid; do
+    command -v "$tool" >/dev/null || { echo "rsw: required command '$tool' is missing" >&2; return 1; }
+  done
+  state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/rsw"
+  (umask 077; mkdir -p -- "$state_dir") || return 1
+  state=$(mktemp -d "$state_dir/watch.XXXXXXXXXX") || return 1
   # Reuse one SSH connection per login, so 1Password only prompts once.
-  local sockets="${XDG_RUNTIME_DIR:-$HOME/.ssh/sockets}"
-  mkdir -p "$sockets"
-  local rsh="ssh -o ControlMaster=auto -o ControlPath=$sockets/rsw-%r@%h:%p -o ControlPersist=yes"
-  # shellcheck disable=SC2016 # The child shell expands its positional arguments.
-  setsid --fork env RSYNC_RSH="$rsh" bash -c 'rsync -a "$1/" "$2"; while inotifywait -r -q -e modify,create,delete,move "$1"; do rsync -a "$1/" "$2"; done' rsw-watch "$src" "$dest" >/dev/null 2>&1
-  echo "Watching $src -> $dest"
+  sockets="${XDG_RUNTIME_DIR:-$state_dir}/rsw-sockets"
+  (umask 077; mkdir -p -- "$sockets") || return 1
+  # rsync's remote-shell parser supports doubled quotes inside quoted words.
+  rsh="ssh -o ControlMaster=auto -o 'ControlPath=${sockets//\'/\'\'}/rsw-%C' -o ControlPersist=yes"
+  setsid --fork env RSYNC_RSH="$rsh" LC_ALL=C bash -c \
+    "$(declare -f _rsw_watch)"$'\n''_rsw_watch "$@"' rsw-watch "$src" "$dest" "$state" \
+    >"$state/watch.log" 2>&1 </dev/null || return 1
+  for ((i = 0; i < 120; i++)); do
+    if [[ -f $state/ready ]]; then
+      read -r pid <"$state/ready" || return 1
+      [[ $pid =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null || return 1
+      printf 'Watching %s -> %s (pid %s); initial sync/retries in %s/watch.log\n' "$src" "$dest" "$pid" "$state"
+      return 0
+    fi
+    [[ ! -e $state/stopped ]] || break
+    sleep 0.1
+  done
+  printf 'rsw: watcher failed to become ready; see %s/watch.log\n' "$state" >&2
+  cat -- "$state/watch.log" >&2
+  return 1
+}
+
+_rsw_pids() {
+  local ready pid
+  local -a args=()
+  for ready in "${XDG_STATE_HOME:-$HOME/.local/state}"/rsw/watch.*/ready; do
+    [[ -f $ready ]] || continue
+    read -r pid <"$ready" || continue
+    [[ $pid =~ ^[0-9]+$ && -r /proc/$pid/cmdline ]] || continue
+    mapfile -d '' -t args <"/proc/$pid/cmdline" || continue
+    [[ ${args[3]:-} == rsw-watch && ${args[6]:-} == "${ready%/ready}" ]] || continue
+    printf '%s\n' "$pid"
+  done
 }
 
 lsw() {
-  local pid cmd rest found=0
-  while read -r pid cmd; do
-    rest="${cmd##*rsw-watch }"
-    echo "$pid: ${rest% *} -> ${rest##* }"
+  local pid found=0
+  local -a args=()
+  while read -r pid; do
+    mapfile -d '' -t args <"/proc/$pid/cmdline" || continue
+    printf '%s: %s -> %s\n' "$pid" "${args[4]}" "${args[5]}"
     found=1
-  done < <(pgrep -af 'rsw-watch ')
-  (( found )) || echo "No active watches"
+  done < <(_rsw_pids)
+  ((found)) || echo 'No active watches'
 }
 
 dsw() {
   local pid found=0
-  for pid in $(pgrep -f 'rsw-watch '); do
+  for pid in $(_rsw_pids); do
     kill -- -"$pid" 2>/dev/null && echo "Stopped watch (pid $pid)" && found=1
   done
   (( found )) || echo "No active watches"

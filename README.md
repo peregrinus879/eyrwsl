@@ -361,6 +361,8 @@ After deployment, confirm the default profile resolves to `archlinux` and the fo
 
 Workspace fixtures exercise isolated tmux servers with fake agents and a Python-backed Herdr model. They cover creation, ownership, failure recovery and concurrency without using running user workspaces or real agents; rendered UI and actual-host activation remain separate checks.
 
+The rsync fixture uses fake local monitor/transfer commands, not SSH or production endpoints. It checks literal source resolution, complete readiness publication, events during a successful transfer, burst coalescing, failure retry, missed-event reconciliation and watcher management. Normal checks shorten only the fixture's reconciliation interval to 10 seconds; `RSW_FIXTURE_REALTIME=1 bash tests/rsyncing.sh` exercises the unchanged 60-second interval. The Python guard requires Linux child-subreaper support and `/proc`: it owns detached descendants, uses bounded TERM/KILL cleanup, and removes state only after all children are reaped. Unverified cleanup fails and retains its reported diagnostic directory. Killing the guard itself with SIGKILL can leave descendants and state behind.
+
 After stowing or changing owned packages:
 
 - Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, tmux, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures). GitHub Actions runs them on pushes to `main` and pull requests, plus an exact committed twin-pair check against EyrArcHy's fetched default branch.
@@ -368,6 +370,7 @@ After stowing or changing owned packages:
 
 Complete these manual fresh-session checks:
 
+- With disposable local source/destination directories, start `rsw <source> <destination>`, note its PID/log path, and confirm changes during a transfer eventually arrive. Readiness is not sync success: inspect logs for transfer/monitor failures and retries. Reconciliation is checked between transfers, 60 seconds after the last successful completion. Monitor death stops the watcher after the current transfer returns and requires inspection/restart; a stalled transfer can delay this indefinitely. `lsw` and `dsw` manage only watchers started by this implementation; do not assume an older watcher stopped. No `--delete` is used, so destination-only files remain.
 - In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
 - Confirm the core symlinks and local Git identity exist: `test -L ~/.bashrc && test -L ~/.config/starship.toml && test -L ~/.config/nvim/lua/config/options.lua && test -f ~/.config/git/config.local`
 - Start a fresh shell and confirm Bash, Starship, and Tmux load without errors.

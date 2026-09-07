@@ -77,7 +77,7 @@ restow: require-clone
 lint:
 	shellcheck -s bash bash/.bashrc bash/.config/bash/envs bash/.config/bash/shell \
 	  bash/.config/bash/aliases bash/.config/bash/init bash/.config/bash/functions/* \
-	  mise/.local/bin/* scripts/*.sh tests/*.sh
+	  mise/.local/bin/* scripts/*.sh tests/*.sh tests/fixtures/rsw-tool
 	@echo "ok:   shellcheck clean"
 
 # Repository-only checks: every owned config validates in repo mode, then the
