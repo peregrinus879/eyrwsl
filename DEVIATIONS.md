@@ -126,7 +126,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 
 ### Neovim
 
-- `lua/config/options.lua` keeps Omarchy's `vim.opt.relativenumber = false` and `vim.g.autoformat = false` baseline and adds WSL clipboard integration directly, guarded by `clip.exe` and `powershell.exe` availability so the block is a no-op outside WSL. Copy uses `clip.exe`; paste uses `powershell.exe Get-Clipboard`.
+- `lua/config/options.lua` keeps Omarchy's `vim.opt.relativenumber = false` and `vim.g.autoformat = false` baseline and adds a WSL/`powershell.exe`-guarded clipboard provider for both `+` and `*`. Argv arrays use `-NoLogo -NoProfile -NonInteractive`, explicit UTF-8 without BOM on both pipes, and terminating errors. Copy uses `Set-Clipboard` and clears empty input; paste uses `Get-Clipboard -Raw`, casts null to empty, and strips CR. `clip.exe` is not this provider's dependency. Windows PowerShell behavior still needs the live host pass; Unicode mocks do not prove it.
 - The `nvim/` package owns the complete LazyVim bootstrap, static configuration, and generated `lazy-lock.json`; setup requires no separate Neovim configuration clone.
 - `all-themes.lua` and `omarchy-theme-hotreload.lua` are omitted because Neovim uses a fixed Gruvbox configuration.
 - Kept verbatim from `omarchy-nvim`: `disable-news-alert.lua`, `snacks-animated-scrolling-off.lua`, `vim.opt.relativenumber = false`, and `vim.g.autoformat = false`.
