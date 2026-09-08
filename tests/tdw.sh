@@ -20,7 +20,7 @@ SOCKET="tdw-test-$$"
 BASE_SOCKET=$SOCKET suffix=""
 trap 'for suffix in "" -reuse-{1..10}; do command tmux -L "$BASE_SOCKET$suffix" kill-server >/dev/null 2>&1 || true; rm -f -- "${TMUX_TMPDIR:-/tmp}/tmux-$UID/$BASE_SOCKET$suffix"; done; rm -rf -- "$TMP"' EXIT
 unset TMUX TMUX_PANE
-export XDG_STATE_HOME="$TMP/state" HOME="$TMP/home"
+export XDG_STATE_HOME="$TMP/state" HOME="$TMP/home" HISTFILE=/dev/null
 mkdir -p "$HOME"
 
 fail() {
@@ -286,6 +286,8 @@ case_quoting() {
   local session="quote's \$name;work" dir="$TMP/proj/quote's \$name;work" i
   project "$dir"
   (cd "$dir" && EDITOR=$'printf "%s\\n" "editor\'s \\$value; literal"' tdw cc) || fail 'quoted creation failed'
+  tmux has-session -t "=$session" || fail 'quoted session name was not preserved'
+  [[ $(tmux show-option -t "=$session:" -qv @dw_root) == "$dir" ]] || fail 'quoted root readback was not preserved'
   for ((i = 0; i < 40; i++)); do
     if tmux capture-pane -p -t "=$session:.1" | grep -qxF "editor's \$value; literal"; then return 0; fi
     sleep 0.1

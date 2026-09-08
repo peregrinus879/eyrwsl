@@ -383,19 +383,24 @@ SH
   if make --no-print-directory -C "$left" twins-pair TWIN_SPECS=twin SELF_COMMIT="$self" PEER_COMMIT="$original_peer" SIBLING="$TMP/missing-peer" >/dev/null 2>&1; then fail "missing peer was skipped instead of refused"; fi
   if make --no-print-directory -C "$left" twins-pair TWIN_SPECS=absent SELF_COMMIT="$self" PEER_COMMIT="$original_peer" SIBLING="$right" >/dev/null 2>&1; then fail "twins missing in both commits were accepted"; fi
 
-  # Execute the actual CI shell block, mapping its fixed peer URL to the local
-  # fixture. No checkout, peer Makefile execution, or network is involved.
+  # Execute the actual unprivileged CI body, not its root container bootstrap,
+  # mapping the fixed peer URL locally. No peer code or network is involved.
   ci_run=$(python3 - "$ROOT/.github/workflows/test.yml" <<'PY'
 import sys
 text = open(sys.argv[1], encoding="utf-8").read()
-block = text.split("\n  twins:\n", 1)[1].split("        run: |\n", 1)[1]
+step = text.split("\n  twins:\n", 1)[1].split("      - name: Validate Exact Twin Pair\n", 1)[1]
+block = step.split("        run: |\n", 1)[1]
 lines = []
 for line in block.splitlines():
     if line and not line.startswith("          "):
         break
     lines.append(line[10:])
-assert lines, "missing CI twin shell block"
-print("\n".join(lines))
+script = "\n".join(lines) + "\n"
+marker = "<<'CHECK_TWINS' | tee -a \"$GITHUB_STEP_SUMMARY\"\n"
+assert script.count(marker) == 1 and script.count("\nCHECK_TWINS\n") == 1, "missing streamed CI twin body"
+assert script.rstrip().endswith("CHECK_TWINS"), "unexpected root operations after the unprivileged twin stream"
+body = script.split(marker, 1)[1].split("\nCHECK_TWINS\n", 1)[0]
+print("set -euo pipefail\n" + body)
 PY
   )
   bin="$TMP/pair/bin"
@@ -428,12 +433,15 @@ SH
       unavailable) peer=0000000000000000000000000000000000000000 ;;
     esac
     code=0
-    out=$(cd -- "$left" && HOME="$TMP/pair/home" PATH="$bin:$PATH" EYR_TEST_GIT="$real_git" EYR_TEST_PEER="$right" EYR_TEST_GIT_CALLS="$runner/git-calls" RUNNER_TEMP="$runner" GITHUB_STEP_SUMMARY="$runner/summary" PEER_COMMIT="$peer" PEER_REVIEWED="$reviewed" bash -c "$ci_run" 2>&1) || code=$?
+    out=$(cd -- "$left" && HOME="$TMP/pair/home" PATH="$bin:$PATH" EYR_TEST_GIT="$real_git" EYR_TEST_PEER="$right" EYR_TEST_GIT_CALLS="$runner/git-calls" RUNNER_TEMP="$runner" PEER_COMMIT="$peer" PEER_REVIEWED="$reviewed" bash -c "$ci_run" 2>&1 | tee -a "$runner/summary") || code=$?
     if [[ $expected == 0 ]]; then
       [[ $code == 0 && $out == *"pair: self=$self peer=$original_peer"* ]] || fail "reviewed CI pair did not succeed: $out"
       [[ $(<"$runner/summary") == *"$self"* && $(<"$runner/summary") == *"$original_peer"* ]] || fail "CI summary omitted the exact pair"
     else
       [[ $code != 0 ]] || fail "CI accepted $scenario peer input or default-branch drift"
+    fi
+    if [[ $scenario == default ]]; then
+      [[ $(<"$runner/summary") == *"$self"* && $(<"$runner/summary") == *"$(git -C "$right" rev-parse HEAD)"* ]] || fail 'failed CI pair lost its actual-commit summary'
     fi
     if [[ $scenario == unreviewed || $scenario == malformed ]]; then
       [[ ! -e $runner/git-calls ]] || fail "CI fetched an unreviewed or malformed peer"

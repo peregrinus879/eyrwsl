@@ -18,33 +18,49 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
+env:
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  HISTFILE: /dev/null
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    container:
+      image: archlinux:base
+      options: --init
     steps:
+      - name: Prepare Arch userspace
+        run: |
+          pacman -Syu --noconfirm --needed git make jq lua python shellcheck stow tmux fastfetch diffutils
+          useradd --create-home --user-group --uid 1000 --shell /bin/bash ci
+          install -d -o ci -g ci -m 700 /tmp/eyr-ci
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Install prerequisites
+      - name: Run unprivileged checks
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends curl git jq lua5.4 python3 stow tmux xz-utils
-          command -v luac > /dev/null || sudo ln -s "$(command -v luac5.4)" /usr/local/bin/luac
-          curl -fsSL -o "$RUNNER_TEMP/fastfetch.deb" https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb
-          sudo apt-get install -y "$RUNNER_TEMP/fastfetch.deb"
-      - name: Install pinned ShellCheck
-        run: |
-          curl -fsSL -o "$RUNNER_TEMP/shellcheck.tar.xz" \
-            https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
-          printf '%s  %s\n' '8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198' "$RUNNER_TEMP/shellcheck.tar.xz" | sha256sum --check
-          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP" shellcheck-v0.11.0/shellcheck
-          "$RUNNER_TEMP/shellcheck-v0.11.0/shellcheck" --version
-          echo "$RUNNER_TEMP/shellcheck-v0.11.0" >> "$GITHUB_PATH"
-      - run: make lint
-      - run: make check
+          chown --recursive --no-dereference ci:ci "$GITHUB_WORKSPACE"
+          runuser -u ci -- env HOME=/home/ci TMPDIR=/tmp/eyr-ci TMUX_TMPDIR=/tmp/eyr-ci \
+            bash -euo pipefail <<'CHECK_REPO'
+          test "$(id -u)" -ne 0
+          make lint check
+          CHECK_REPO
   twins:
     runs-on: ubuntu-latest
+    container:
+      image: archlinux:base
+      options: --init
     steps:
+      - name: Prepare Arch userspace
+        run: |
+          pacman -Syu --noconfirm --needed git make
+          useradd --create-home --user-group --uid 1000 --shell /bin/bash ci
+          install -d -o ci -g ci -m 700 /tmp/eyr-ci
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -53,7 +69,10 @@ jobs:
           PEER_COMMIT: ${{ inputs.peer_commit }}
           PEER_REVIEWED: ${{ inputs.peer_reviewed }}
         run: |
-          set -euo pipefail
+          chown --recursive --no-dereference ci:ci "$GITHUB_WORKSPACE"
+          runuser -u ci -- env HOME=/home/ci TMPDIR=/tmp/eyr-ci RUNNER_TEMP=/tmp/eyr-ci \
+            bash -euo pipefail <<'CHECK_TWINS' | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$(id -u)" -ne 0
           if [[ -n "$PEER_COMMIT" ]]; then
             [[ "$PEER_COMMIT" =~ ^[0-9a-f]{40}$ && "$PEER_REVIEWED" == true ]] || {
               echo 'FAIL: an explicit peer requires a full commit SHA and peer_reviewed=true'
@@ -67,5 +86,6 @@ jobs:
           actual=$(git -C "$peer" rev-parse 'FETCH_HEAD^{commit}')
           [[ -z "$PEER_COMMIT" || "$actual" == "$PEER_COMMIT" ]] || { echo 'FAIL: fetched peer is not the reviewed commit'; exit 1; }
           self=$(git rev-parse HEAD)
-          printf 'Twin pair: eyrarchy %s, eyrwsl %s\n' "$actual" "$self" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Twin pair: eyrarchy %s, eyrwsl %s\n' "$actual" "$self"
           make twins-pair SELF_COMMIT="$self" PEER_COMMIT="$actual" SIBLING="$peer"
+          CHECK_TWINS
