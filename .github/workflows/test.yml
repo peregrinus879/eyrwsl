@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Prepare Arch userspace
         run: |
-          pacman -Syu --noconfirm --needed git make jq lua python shellcheck stow tmux fastfetch diffutils
+          pacman -Syu --noconfirm --needed git make jq lua python shellcheck stow fastfetch diffutils
           useradd --create-home --user-group --uid 1000 --shell /bin/bash ci
           install -d -o ci -g ci -m 700 /tmp/eyr-ci
       - uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
       - name: Run unprivileged checks
         run: |
           chown --recursive --no-dereference ci:ci "$GITHUB_WORKSPACE"
-          runuser -u ci -- env HOME=/home/ci TMPDIR=/tmp/eyr-ci TMUX_TMPDIR=/tmp/eyr-ci \
+          runuser -u ci -- env HOME=/home/ci TMPDIR=/tmp/eyr-ci \
             bash -euo pipefail <<'CHECK_REPO'
           test "$(id -u)" -ne 0
           make lint check

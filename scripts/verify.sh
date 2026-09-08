@@ -10,20 +10,35 @@
 # full mode only.
 set -euo pipefail
 
-script_repo=$(realpath -e -- "$(dirname -- "${BASH_SOURCE[0]}")/..")
+# Roots are not line-oriented data. Reject unsupported controls without first
+# trimming them into a different existing HOME or clone.
+for root_input in "${BASH_SOURCE[0]}" "${HOME:-}" "${VERIFY_REPO:-}" "${VERIFY_HOME:-}"; do
+  if [[ $root_input =~ [[:cntrl:]] ]]; then
+    printf 'FAIL: control characters in root/HOME paths are unsupported\n' >&2
+    exit 1
+  fi
+done
+IFS= read -r -d '' script_dir < <(dirname -z -- "${BASH_SOURCE[0]}") || exit 1
+IFS= read -r -d '' script_repo < <(realpath -ez -- "$script_dir/..") || exit 1
 mode=${VERIFY_MODE:-full}
 repo=${VERIFY_REPO:-$script_repo}
-verify_home=${VERIFY_HOME:-$HOME}
+verify_home_input=${VERIFY_HOME:-$HOME}
 
 [[ -n ${VERIFY_PACKAGES:-} ]] || { printf 'FAIL: VERIFY_PACKAGES is required\n' >&2; exit 1; }
-repo=$(realpath -e -- "$repo")
-verify_home=$(realpath -e -- "$verify_home")
+IFS= read -r -d '' repo < <(realpath -ez -- "$repo") || exit 1
+IFS= read -r -d '' verify_home < <(realpath -ez -- "$verify_home_input") || exit 1
+for root_path in "$script_repo" "$repo" "$verify_home"; do
+  if [[ $root_path =~ [[:cntrl:]] ]]; then
+    printf 'FAIL: control characters in canonical root/HOME paths are unsupported\n' >&2
+    exit 1
+  fi
+done
 read -r -a packages <<<"$VERIFY_PACKAGES"
 (( ${#packages[@]} )) || { printf 'FAIL: package list is empty\n' >&2; exit 1; }
 
 case $mode in
   full)
-    live_home=$(realpath -e -- "$HOME")
+    IFS= read -r -d '' live_home < <(realpath -ez -- "$HOME") || exit 1
     [[ $repo == "$script_repo" && $verify_home == "$live_home" ]] || {
       printf 'FAIL: full mode must use the live repository and HOME\n' >&2
       exit 1
@@ -36,7 +51,9 @@ case $mode in
       exit 1
     }
     login_home=$(getent passwd "$(id -un)" | cut -d: -f6)
-    [[ -n $login_home && $verify_home != "$(realpath -m -- "$login_home")" ]] || {
+    [[ -n $login_home ]] || exit 1
+    IFS= read -r -d '' login_home < <(realpath -mz -- "$login_home") || exit 1
+    [[ ! $login_home =~ [[:cntrl:]] && $verify_home != "$login_home" ]] || {
       printf 'FAIL: fixture mode must not target the live HOME\n' >&2
       exit 1
     }
@@ -46,6 +63,14 @@ case $mode in
     exit 1
     ;;
 esac
+
+if [[ $mode != repo ]]; then
+  # Validate both caller spellings through the same read-only boundary used
+  # by deployment. Normalizing either one first would hide a HOME symlink.
+  for checked_home in "$HOME" "$verify_home_input"; do
+    HOME="$checked_home" bash "$repo/scripts/prepare-stow.sh" --check-home || exit 1
+  done
+fi
 
 fail=0
 
@@ -59,7 +84,7 @@ problem() {
 }
 
 # Tools this script runs itself; a missing one fails every mode.
-verifier_tools=(bash cmp diff fastfetch find git jq luac python3 readlink realpath tmux)
+verifier_tools=(bash cmp diff fastfetch find git jq luac python3 readlink realpath stat)
 [[ -n ${VERIFY_EXTRA_REQUIRED_TOOL:-} ]] && verifier_tools+=("$VERIFY_EXTRA_REQUIRED_TOOL")
 for tool in "${verifier_tools[@]}"; do
   command -v "$tool" >/dev/null || {
@@ -124,24 +149,43 @@ if [[ $mode != repo ]]; then
 fi
 
 if [[ $mode != repo ]]; then
+  if HOME="$verify_home_input" EYRWSL_PACKAGES="${packages[*]}" bash "$repo/scripts/prepare-stow.sh" --check-retired; then
+    ok "retired copied Herdr helper and tmux endpoints are absent"
+  else
+    problem "retired copied Herdr helper and tmux endpoints or their parents require ownership review and guarded cleanup"
+  fi
+
+  sources=()
+  mapfile -d '' -t visible_sources < <(git -C "$repo" ls-files -z --cached --others --exclude-standard -- "${packages[@]}")
+  scan=$!; wait "$scan" || { problem "cannot enumerate package files"; exit 1; }
+  for source in "${visible_sources[@]}"; do
+    # Pending known deletions remain in the index before commit. Exempt only
+    # these missing retired sources, never other missing package files.
+    case $source in
+      bash/.config/bash/functions/herdr|bash/.config/bash/functions/tdw|bash/.config/bash/functions/tmux|tmux/.config/tmux/tmux.conf)
+        [[ -e $repo/$source || -L $repo/$source ]] || continue ;;
+    esac
+    sources+=("$source")
+  done
   deployed_sources=0
-  while IFS= read -r source; do
+  for source in "${sources[@]}"; do
     [[ -n $source ]] || continue
     ((deployed_sources += 1))
     source_path="$repo/$source"
     target="$verify_home/${source#*/}"
     if [[ ! -e $source_path && ! -L $source_path ]]; then
       problem "Git-visible Stow source is missing: $source"
-    elif [[ $(readlink -f -- "$target") == $(readlink -f -- "$source_path") ]]; then
+    elif IFS= read -r -d '' target_source < <(readlink -fz -- "$target") &&
+      IFS= read -r -d '' repo_source < <(readlink -fz -- "$source_path") && [[ $target_source == "$repo_source" ]]; then
       ok "$target resolves into the repo"
     else
       problem "$target does not resolve to $source_path"
     fi
-  done < <(git -C "$repo" ls-files --cached --others --exclude-standard -- "${packages[@]}")
+  done
   (( deployed_sources > 0 )) || problem "Git-visible Stow source set is empty"
 
   # Every managed parent must be a real directory: a folded one means a
-  # deployment made with folding that make restow has not replaced.
+  # deployment made with folding that guarded clean then restow must replace.
   while IFS= read -r rel; do
     target="$verify_home/$rel"
     if [[ -d $target && ! -L $target ]]; then
@@ -149,8 +193,7 @@ if [[ $mode != repo ]]; then
     else
       problem "managed directory is folded or missing: $target"
     fi
-  done < <(git -C "$repo" ls-files --cached --others --exclude-standard -- "${packages[@]}" |
-    while IFS= read -r source; do rel=${source#*/}
+  done < <(for source in "${sources[@]}"; do rel=${source#*/}
       while [[ $rel == */* ]]; do rel=${rel%/*}; printf '%s\n' "$rel"; done; done | sort -u)
 
   # The values are never printed: the email must be a GitHub no-reply address.
@@ -278,15 +321,6 @@ if HOME="$verify_home" XDG_CONFIG_HOME="$verify_home/.config" \
 else
   problem "Git config failed to parse"
 fi
-
-tmux_socket="eyrwsl-verify-$$"
-if tmux -L "$tmux_socket" -f /dev/null new-session -d -s verify >/dev/null 2>&1 &&
-  tmux -L "$tmux_socket" source-file -n "$repo/tmux/.config/tmux/tmux.conf" >/dev/null 2>&1; then
-  ok "tmux config parses"
-else
-  problem "tmux config failed to parse"
-fi
-tmux -L "$tmux_socket" kill-server >/dev/null 2>&1 || true
 
 if [[ -f $repo/btop/.config/btop/btop.conf ]] &&
   [[ $(<"$repo/btop/.config/btop/btop.conf") == *'color_theme = "gruvbox"'* ]]; then

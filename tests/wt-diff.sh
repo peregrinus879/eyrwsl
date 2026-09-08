@@ -12,6 +12,12 @@ git clone -q --shared -- "$ROOT" "$TMP/repo"
 for path in Makefile scripts/prepare-stow.sh scripts/wt-diff.sh windows-terminal/settings.json; do
   cp -- "$ROOT/$path" "$TMP/repo/$path"
 done
+# Keep the guard's fixture tree consistent with pending source retirements.
+for path in bash/.config/bash/functions/herdr bash/.config/bash/functions/tdw bash/.config/bash/functions/tmux tmux/.config/tmux/tmux.conf; do
+  if [[ ! -e $ROOT/$path && ! -L $ROOT/$path && ( -e $TMP/repo/$path || -L $TMP/repo/$path ) ]]; then
+    git -C "$TMP/repo" rm -q -- "$path"
+  fi
+done
 SOURCE_ROOT=$ROOT
 ROOT="$TMP/repo"
 export HOME="$TMP/home" PREPARE_STOW_KERNEL_RELEASE=6.6.0-microsoft-standard-WSL2

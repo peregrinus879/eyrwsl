@@ -26,7 +26,7 @@ Local clones live side by side under `~/Projects/eyrie/`.
 
 - **Shell**: [Bash](https://www.gnu.org/software/bash/)
 - **Prompt**: [Starship](https://github.com/starship/starship)
-- **Terminal Workspaces**: [Tmux](https://github.com/tmux/tmux), [Herdr](https://github.com/herdrdev/herdr)
+- **Terminal Workspaces**: [Herdr](https://github.com/herdrdev/herdr)
 - **AI Tools**: [Claude Code](https://code.claude.com/docs), [Codex](https://github.com/openai/codex), and [OpenCode](https://github.com/anomalyco/opencode), installed and updated through [mise](https://mise.jdx.dev/)
 - **Editor**: [Neovim](https://github.com/neovim/neovim) ([LazyVim](https://github.com/LazyVim/LazyVim))
 - **Version Control**: [Git](https://git-scm.com/), [GitHub CLI](https://cli.github.com/), [LazyGit](https://github.com/jesseduffield/lazygit)
@@ -51,7 +51,6 @@ git/               Git config (config, ignore)
 mise/              AI tool wrappers (.local/bin/claude, codex, opencode) that install and run each tool through mise, plus the paranoid-mode fragment (.config/mise/conf.d/eyrwsl.toml)
 nvim/              Self-contained Neovim config (bootstrap, lock, LazyVim config and plugins)
 starship/          Prompt config (starship.toml)
-tmux/              Tmux config (tmux.conf)
 yazi/              File manager config (yazi.toml)
 windows-terminal/  Windows Terminal settings.json, deployed explicitly, not stowed
 ```
@@ -63,7 +62,8 @@ Key ownership rules:
 - `nvim/` also carries `git-review.lua`, the contextual Snacks diff/status mappings shared with EyrArcHy
 - Bash supports additive machine overlays through `~/.config/bash-overlays/*`; the directory is optional and reserved for untracked machine-local additions
 - `mise/` owns the `~/.local/bin` wrappers for Claude Code, Codex, and OpenCode, the files `omarchy-mise-install` writes on Omarchy minus its release-cooldown override, and the `~/.config/mise/conf.d/eyrwsl.toml` fragment that turns on mise's paranoid mode; each wrapper installs its tool through mise on first run, and mise's other files (`~/.config/mise/config.toml`, `~/.local/share/mise`) are host state the wrappers create
-- The AI tools run as EyrAgents configures them; Omarchy's launch aliases are not carried
+- The AI tools load applicable EyrAgents settings; Omarchy's AI launch aliases are not carried. `hdw` sends full commands, not shell aliases or an isolated harness profile
+- Native Herdr binary/configuration/keymap remain; open it with `herdr`, then use `hdw` for a new workspace. EyrWSL carries no `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or local tmux recipes
 - Interactive Bash exports `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` and `OPENCODE_ENABLE_EXA=1`, so OpenCode skips the Claude Code skill copies and reads `.agents/skills` natively; EyrAgents owns OpenCode runtime configuration
 - EyrAgents owns shared OpenCode runtime and TUI configuration; its `system` theme selection inherits the Windows Terminal ANSI palette
 - `windows-terminal/` stays Windows-side and intentionally tracks the full paste-ready `settings.json`; setup deploys it through idempotent, backup-first `make wt-push`
@@ -281,10 +281,10 @@ Install the baseline packages in **Arch Bash, normal Linux user**:
 sudo pacman -Syu --needed 7zip bash-completion bat btop curl diffutils eza fastfetch fd file findutils \
   fzf gcc git github-cli gum inetutils inotify-tools jq lazygit less lua make man-db man-pages mise \
   neovim openssh procps-ng python ripgrep rsync shellcheck starship \
-  stow sudo tmux tree-sitter-cli unzip util-linux which yazi zoxide
+  stow sudo tree-sitter-cli unzip util-linux which yazi zoxide
 ```
 
-All packages in this command come from official Arch repositories; their normal dependencies are installed automatically. `--needed` skips already-current packages, while `-Syu` completes a full system upgrade. Read Pacman's transaction and any provider/replacement prompts before accepting. [Partial upgrades are unsupported](https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported): do not replace this with `pacman -Sy` followed by selective installs.
+All 42 packages in this command come from official Arch repositories; their normal dependencies are installed automatically. `--needed` skips already-current packages, while `-Syu` completes a full system upgrade. Read Pacman's transaction and any provider/replacement prompts before accepting. [Partial upgrades are unsupported](https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported): do not replace this with `pacman -Sy` followed by selective installs.
 
 The baseline stays terminal-only: `inetutils` supplies `hostname`, `lua` supplies the Lua syntax verifier, `tree-sitter-cli` supports LazyVim, `python` supports repository checks and user-owned vault scripts, `man-db`/`man-pages` supply local documentation, and 7-Zip supports Yazi archives. No desktop `xdg-utils`, Linux font package, AUR package/helper, or Node runtime is added here. **Node.js is a separate prerequisite for optional EyrAgents**, not for these prebuilt AI tool binaries.
 
@@ -294,7 +294,7 @@ Verify the package list in **Arch Bash, normal Linux user**. Success prints noth
 pacman -T 7zip bash-completion bat btop curl diffutils eza fastfetch fd file findutils \
   fzf gcc git github-cli gum inetutils inotify-tools jq lazygit less lua make man-db man-pages mise \
   neovim openssh procps-ng python ripgrep rsync shellcheck starship \
-  stow sudo tmux tree-sitter-cli unzip util-linux which yazi zoxide
+  stow sudo tree-sitter-cli unzip util-linux which yazi zoxide
 ```
 
 For Yazi image, video, PDF, and SVG previews, optionally install the official media helpers in **Arch Bash, normal Linux user**:
@@ -402,7 +402,7 @@ make clean
 make dry-run
 ```
 
-Despite its name, `make clean` is **not** a project-file deletion command. It classifies owned paths before changing them and removes only leftover folded links into this repo or recognized dangling links from an old clone. It refuses regular files, foreign links, and special files rather than replacing them. It is a mutation, unlike `make dry-run`; do not confuse it with `git clean`. Resolve a refusal, then rerun this pair in order. **Checkpoint:** preparation finishes, often with `nothing to remove`, and the final dry run has no conflict or ownership failure.
+Despite its name, `make clean` is **not** a project-file deletion command. It classifies all owned endpoints and parents before changing them and removes only leftover owned folds, recognized dangling active-package clone links, and exact retired links into this clone. It never traverses a queued fold or removes real directories and user state. It refuses regular files, foreign links, and special files rather than replacing them. It is a mutation, unlike `make dry-run`; do not confuse it with `git clean`. Resolve a refusal, then rerun this pair in order. **Checkpoint:** preparation finishes, often with `nothing to remove`, and the final dry run has no conflict or ownership failure.
 
 ### 9. Stow
 
@@ -415,7 +415,7 @@ make stow
 
 Stow keeps managed parent directories real and links only their files; this protects the repository from generated host state. Once linked, edits in the clone affect live configuration before any commit. An error is not a completed deployment; resolve it and rerun the preview before retrying.
 
-Open a **new Arch tab in Windows Terminal as the normal Linux user**, outside any existing tmux/Herdr session. A new tab is preferable to repeatedly sourcing `.bashrc`, which may retain old aliases and environment values. In that fresh **Arch Bash, normal Linux user**:
+Open a **new Arch tab in Windows Terminal as the normal Linux user**, outside existing multiplexer sessions. A new tab is preferable to repeatedly sourcing `.bashrc`, which may retain old aliases and environment values. Preserve active sessions instead of killing them to refresh configuration. In that fresh **Arch Bash, normal Linux user**:
 
 ```bash
 cd ~
@@ -620,6 +620,10 @@ make restow
 
 An initial preview may identify old links that `make clean` is designed to repair; do not bypass an unfamiliar ownership refusal. The last preview must be conflict-free. Open a fresh Arch tab, repeat the mise/bootstrap checks in [Stow](#9-stow), and run `make verify`. Existing authentication should still be present; do not sign out or erase auth merely to test the update. Handle optional EyrAgents upgrades in its own deployed clone, using its README/ledger and confirming Node is available. Windows Terminal changes always retain the separate diff/review/push/diff sequence.
 
+Local tmux support and copied Omarchy Herdr recipes are retired from EyrWSL's source; the baseline remains 42 packages. Pulling does not uninstall a host package or unload functions/aliases in an existing shell. The explicit retirement inventory covers `~/.config/bash/functions/{tdw,tmux,herdr}`, `~/.config/tmux/tmux.conf`, and a former folded `~/.config/tmux` link to this clone's `tmux/.config/tmux`. The Herdr helper endpoint maps only to this clone's former `bash/.config/bash/functions/herdr`, not the native `herdr` binary or its configuration/keymap. The inventory survives deletion of these sources from Git and `PACKAGES`, including pending known deletions still in the index. Only exact links into this clone qualify; another clone or lookalike path refuses. Use the guarded clean/preview/restow sequence above, not restow alone; verification only checks, never cleans. Keep real directories, user data/state and active sessions. Actual installed-package removal remains a separately approved WSL task in the [host procedure](docs/maintenance.md#wsl-host-pass).
+
+Retirement refuses if any exact mapped source file/symlink is still present, even if it is untracked or dangling; otherwise Stow could redeploy it. Its containing directories may keep unrelated data. HOME and real retired-path ancestors must be caller-owned, readable/writable/searchable and not group/world-writable. Unsafe metadata fails before unlinking anything and is never repaired automatically. This retirement boundary does not add permission restrictions to unrelated active-package parents.
+
 To **move a deployed clone**, first preserve any local work and run `make unstow` from the old, still-existing clone, as the normal Linux user on WSL. Then put the clone at the intended location and repeat the preview/preparation/Stow sequence there. `/old/clone/path` below is a placeholder for that exact reviewed old location, not a literal directory. In **Arch Bash, normal Linux user**:
 
 ```bash
@@ -627,6 +631,22 @@ make -C /old/clone/path unstow
 ```
 
 Unstow removes this repository's links, not the clone or your generated host data; applications may lack their configuration until you stow again. It does not undo Windows Terminal deployment or remove optional EyrAgents. If the old clone is unavailable, recognized dangling links can be handled by `make clean`; a live link into a different clone must be resolved at its owner rather than forced away.
+
+## Native Herdr
+
+Open Herdr independently by running `herdr` in a normal-user Arch shell. In a shell inside that session, navigate to the desired directory, then run `hdw <cc|cx|oc> [-c]` to create and focus a new workspace:
+
+- `cc` sends `claude`; `-c` uses `claude -c`.
+- `cx` sends `codex`; `-c` uses `codex resume --last`.
+- `oc` sends `opencode`; `-c` uses `opencode -c`.
+
+`hdw` uses the current physical directory, not an inferred Git root. AI occupies the full-height left column, Neovim the top-right and a shell the bottom-right, with equal columns, equally stacked right panes and AI focus. The caller may be in a populated tab or an inactive workspace, but its pane identity and selected-tab context must be valid. Every call creates a separate workspace, even in the same directory; change directory in a generated bottom-right shell and call again to open the next workspace. Bare `hdw` prints usage; outside-Herdr or invalid-context calls refuse.
+
+Existing workspace/tab names and layouts stay intact, apart from normal global workspace focus moving to the new workspace. New names are Herdr's defaults, with no `--label` or rename/metadata writes; the new default tab displays positional `1` ([Herdr 0.8.2 display-name implementation](https://github.com/herdrdev/herdr/blob/v0.8.2/src/workspace.rs)). There is no workspace reuse, roots registry, server startup or client attachment. Old `hdw` state and recovery files remain unused and untouched. Native controls still own navigation: the shipped `Ctrl+Space` prefix followed by `c` opens a tab and `Shift+C` opens a workspace; in-app help is authoritative for personal keymap changes.
+
+Cooperating calls are serialized. Caller identity, the pre-creation workspace inventory, the new root's opaque terminal identity, exact membership and complete geometry are checked before tool input. Cleanup may close only proven new split panes before input, never any workspace, tab, root or original caller. A newly created workspace/root always remains for inspection on failure; possible input or uncertain ownership preserves remaining state. Inspect the reported original/new recovery context before manual action. This is not an atomic multi-RPC transaction.
+
+The `cc`/`cx`/`oc` selectors are arguments, not shell aliases. `hdw` sends full commands and still loads applicable EyrAgents settings; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
 
 ## Git Review
 
@@ -636,24 +656,23 @@ Empty or special non-explorer buffers use the current window's directory. A know
 
 ## Verify
 
-Workspace fixtures exercise isolated tmux servers with fake agents and a Python-backed Herdr model. They cover creation, ownership, failure recovery and concurrency without using running user workspaces or real agents; rendered UI and actual-host activation remain separate checks.
+Layout fixtures use fake agents and a Python-backed Herdr model. They cover new-workspace creation, populated/inactive callers, repeated calls and generated-shell chaining, ownership, failure recovery and concurrency without using running user workspaces or real agents. Real-Herdr, rendered UI and actual-host evidence remain separate; see [active limitations](docs/maintenance.md#active-limitations). Deployment fixtures retire real old Stow deployments after source removal, including the copied Herdr helper; verification neither requires nor invokes tmux.
 
 The rsync fixture uses fake local monitor/transfer commands, not SSH or production endpoints. It checks literal source resolution, complete readiness publication, events during a successful transfer, burst coalescing, failure retry, missed-event reconciliation and watcher management. Normal checks shorten only the fixture's reconciliation interval to 10 seconds; `RSW_FIXTURE_REALTIME=1 bash tests/rsyncing.sh` exercises the unchanged 60-second interval. The Python guard requires Linux child-subreaper support and `/proc`: it owns detached descendants, uses bounded TERM/KILL cleanup, and removes state only after all children are reaped. Unverified cleanup fails and retains its reported diagnostic directory. Killing the guard itself with SIGKILL can leave descendants and state behind.
 
 After stowing or changing owned packages:
 
-- Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, tmux, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures). GitHub Actions runs them on pushes to `main` and pull requests, plus an exact committed twin-pair check against EyrArcHy's fetched default branch.
+- Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures). GitHub Actions runs them on pushes to `main` and pull requests, plus an exact committed twin-pair check against EyrArcHy's fetched default branch.
 - Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: the active WSL2/interop host guard first, then `lint`, `check`, and `twins`, followed by `scripts/verify.sh` in `full` mode (command baseline, the three AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
 
 Complete these manual fresh-session checks:
 
 - Confirm the core symlinks and local Git identity exist: `test -L ~/.bashrc && test -L ~/.config/starship.toml && test -L ~/.config/nvim/lua/config/options.lua && test -f ~/.config/git/config.local`
-- Start a fresh shell and confirm Bash, Starship, and Tmux load without errors.
+- Start a fresh shell and confirm Bash and Starship load without errors; EyrWSL must not supply `tdw`, `tdl`, `tdlm`, `tsl`, `hdl`, `hdlm`, `hsl`, `hds`, or aliases `h`/`t`. A remaining host/user definition needs ownership review, not blanket removal. `command -v herdr` and `type hdw` must still resolve; preserve native Herdr configuration/keymap.
 - Confirm `printenv OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` and `printenv OPENCODE_ENABLE_EXA` each print `1`.
-- Start a fresh shell and confirm `alias claude c cx cy ic ix icx` reports no alias for any of them: the AI tools run as EyrAgents configures them.
-- Confirm `type tdw` and `type hdw` show the workspace functions. From a project directory, `<tdw|hdw> <cc|cx|oc> [-c]` creates a project-named session/workspace with a new window/tab named `claude`, `codex`, or `opencode`; `-c` continues that agent's last conversation. AI stays full-height left, editor/shell equally stacked right, with equal columns and agent focus. Bare invocation preserves existing workspace names/layouts while attaching or focusing. New tmux titles retain host, project session, and agent window as `#h:#S:#W`.
-- Workspace creation is serialized and validates the full layout before sending input; failures stop clearly and cleanup targets only that invocation's creation. Herdr starts headless when needed; failed startup returns failure with manual-start guidance, not a plain-attach success. If rollback is unverified, inspect the reported pending identity and any retained `hdw` roots snapshot before retrying; do not delete unfamiliar workspaces or recovery files.
-- Confirm `type hdl`, `type hdlm`, and `type hsl` show the other Herdr workspace functions. `hds` is intentionally unavailable because it requires Hunk.
+- Start a fresh shell and confirm `alias claude c cx cy ic ix icx` reports no alias for any of them: EyrWSL does not supply Omarchy AI shortcuts, and the full tool commands load applicable EyrAgents settings.
+- Open a disposable session with `herdr` and check the [Native Herdr](#native-herdr) layout, full agent/continuation commands, native names and AI focus. Repeated calls, including from a populated caller, a valid inactive source workspace and a generated bottom-right shell, must each create a new workspace; existing names/layouts must stay intact apart from global focus. Bare invocation shows usage; outside-Herdr and invalid-context calls refuse without server startup or attachment. Do not experiment in an existing working session.
+- On helper failure, inspect the original/new pane/tab/workspace context before manual cleanup. The new workspace/root must remain; only verified new split panes may be removed before possible input, never any workspace/tab/root/caller. Preserve uncertain state and older roots/recovery files. These multi-call operations are not server-side atomic transactions.
 - In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
 - With disposable local source/destination directories, start `rsw <source> <destination>`, note its PID/log path, and confirm changes during a transfer eventually arrive. Readiness is not sync success: inspect logs for transfer/monitor failures and retries. Reconciliation is checked between transfers, 60 seconds after the last successful completion. Monitor death stops the watcher after the current transfer returns and requires inspection/restart; a stalled transfer can delay this indefinitely. `lsw` and `dsw` manage only watchers started by this implementation; do not assume an older watcher stopped. No `--delete` is used, so destination-only files remain.
 - Confirm `mise ls claude codex opencode` lists an installed version of each tool, and `command -v claude codex opencode` resolves every one under `~/.local/share/mise` (interactive shells, through `mise activate`) or to its `~/.local/bin` wrapper; `make verify` fails when a tool is missing from mise or resolves elsewhere.
@@ -664,6 +683,7 @@ Complete these manual fresh-session checks:
 - If the vault is synced to this machine, open a vault note and confirm obsidian.nvim loads (`<leader>oo` opens the note switcher).
 - In OpenCode, run `/theme` and confirm `system` is selected so the TUI inherits Windows Terminal's Gruvbox ANSI palette.
 - Confirm Windows Terminal uses JetBrainsMono Nerd Font at size 9 and the Gruvbox color scheme after applying `windows-terminal/settings.json`.
+- Keep Windows Terminal `Alt+Enter` unbound (`"id": null`) so it passes through to the terminal application rather than toggling fullscreen. Omarchy's Herdr map uses this key too; tmux retirement does not call for a settings change or deployment.
 
 ## Troubleshooting
 
@@ -714,7 +734,7 @@ Save work before terminating Arch from normal-user PowerShell using the step 2 c
 - **Locale warnings or mangled non-ASCII text:** in normal-user Arch Bash, check `locale -a`, `locale`, and `locale charmap`. Generate the selected UTF-8 locale and check `/etc/default/locale` against [step 3](#3-locale). Restart Arch after saving work; do not conceal the problem with a permanent `LC_ALL=C` override.
 - **Preparation/Stow conflict:** follow [Prepare](#8-prepare), comparing only the reported owned path and preserving its needed content. `make clean` is not a force option. Never use `stow --adopt`, `ln -sf`, or broad file deletion to bypass a refusal.
 - **Another-clone ownership error:** inspect `readlink -f ~/.bashrc` in normal-user Arch Bash and use that deployed clone. A move requires unstowing from the old clone first; do not repoint live links from an unrelated checkout.
-- **Commands/prompt missing after Stow:** open a fresh normal-user Arch tab outside existing tmux/Herdr sessions and repeat the step 9 checks. `wsl -e COMMAND`, noninteractive Bash, and already-running multiplexers do not necessarily load the new `.bashrc` environment. Do not kill a multiplexer with unsaved work just to refresh its shell.
+- **Commands/prompt missing after Stow:** open a fresh normal-user Arch tab outside existing multiplexer sessions and repeat the step 9 checks. `wsl -e COMMAND`, noninteractive Bash, and already-running multiplexers do not necessarily load the new `.bashrc` environment. Do not kill a multiplexer with unsaved work just to refresh its shell.
 - **EyrAgents reports `node: command not found`:** Node is not part of the WSL baseline. Complete [Optional EyrAgents](#10-optional-eyragents) and confirm `node --version` in normal-user Arch Bash before rerunning its gates.
 - **Git identity fails:** use the exact no-reply address from GitHub Settings > Emails in `~/.config/git/config.local`. Check legacy/repository overrides privately. Do not print `git config --list` into a support report, since unrelated settings may contain sensitive values.
 
@@ -754,7 +774,7 @@ A repo-root `Makefile` keeps the package list in one place and wraps the routine
 - `make twins-pair SELF_COMMIT=<full-sha> PEER_COMMIT=<full-sha> SIBLING=<peer-object-repo>` - read-only twin comparison of two exact full 40-character commit IDs; all three inputs remain literal data, missing objects/files fail, and no peer code executes. Replace the placeholders and quote the peer path; do not type angle brackets
 - `make verify` - `lint`, `check`, and `twins`, then `scripts/verify.sh` in `full` mode (host, command baseline, mise-managed AI tools, deployment with real managed parents, no-reply identity, and every owned config); refuses off the WSL host
 - `make test` - fake-home deployment, ownership, verifier, Windows Terminal, and reference-clone fixtures; the loop stops on the first failing suite
-- `make clean` - WSL-only guarded stow preparation (`scripts/prepare-stow.sh`); leftover folded links and dangling clone links only, aborts before removing anything otherwise
+- `make clean` - WSL-only guarded stow preparation (`scripts/prepare-stow.sh`); owned folds, recognized dangling active-package clone links and exact retired links only, aborts before removing anything otherwise; run before preview/restow when retiring links
 - `make refs` - clone and fast-forward listed references to exact fetched upstream parity, repointing moved GitHub remotes; report and keep stale clones, never auto-delete them (`/omasync` step 1)
 - `make wt-diff` - diff the tracked Windows Terminal settings against the deployed Windows-side file (normalized with `jq`, since Windows Terminal rewrites key order)
 - `make wt-push` - after full-file review/approval, require active WSL2/interop and deployed-clone ownership, validate both settings files, back up a changed deployment, and atomically deploy the tracked file; direct `scripts/wt-diff.sh --push` has the same guard

@@ -294,6 +294,376 @@ SH
   [[ -L $home/.config/yazi ]] || fail "host refusal happened after cleanup"
 }
 
+# Deploy the old package inventory using real Stow, then simulate pull (or
+# pending worktree deletions) before running the new preparation inventory.
+make_retired_deployment() {
+  local home=$1 repo=$2 layout=$3 state=$4
+  make_clone "$repo"
+  mkdir -p "$repo/bash/.config/bash/functions" "$repo/tmux/.config/tmux"
+  printf '# old Herdr helpers\n' >"$repo/bash/.config/bash/functions/herdr"
+  printf '# old tdw\n' >"$repo/bash/.config/bash/functions/tdw"
+  printf '# old tmux helpers\n' >"$repo/bash/.config/bash/functions/tmux"
+  printf '# old config\n' >"$repo/tmux/.config/tmux/tmux.conf"
+  git -C "$repo" add bash tmux
+  deploy "$home" "$repo"
+  [[ -L $home/.config/bash/functions/herdr &&
+    $(readlink -f -- "$home/.config/bash/functions/herdr") == "$repo/bash/.config/bash/functions/herdr" ]] ||
+    fail 'old Stow did not deploy the copied Herdr helpers'
+  if [[ $layout != leaf ]]; then
+    stow -d "$repo" -t "$home" tmux
+    [[ -L $home/.config/tmux ]] || fail 'old Stow did not fold tmux'
+  else
+    stow --no-folding -d "$repo" -t "$home" tmux
+  fi
+  if [[ $state != pending ]]; then
+    git -C "$repo" rm -q --cached -- bash/.config/bash/functions/herdr bash/.config/bash/functions/tdw bash/.config/bash/functions/tmux tmux/.config/tmux/tmux.conf
+  fi
+  rm -- "$repo/bash/.config/bash/functions/herdr" "$repo/bash/.config/bash/functions/tdw" "$repo/bash/.config/bash/functions/tmux" "$repo/tmux/.config/tmux/tmux.conf"
+  rmdir "$repo/tmux/.config/tmux" "$repo/tmux/.config" "$repo/tmux"
+}
+
+case_retired_links() {
+  local layout state home repo path before active_packages=$PACKAGES PACKAGES=$PACKAGES
+  for layout in leaf fold dangling-fold; do
+    for state in pulled pending unlisted; do
+      home="$TMP/retired-$layout-$state/home"; repo="$home/Projects/eyrwsl"
+      mkdir -p "$home"
+      PACKAGES=$active_packages
+      make_retired_deployment "$home" "$repo" "$layout" "$state"
+      # Exact retirement must not depend on bash remaining in PACKAGES either.
+      [[ $state != unlisted ]] || PACKAGES='git nvim yazi'
+      printf 'retained helper state\n' >"$home/.config/bash/functions/user-state"
+      # State under real home directories and source content hidden by a fold
+      # must survive. The latter also proves queued folds are never traversed.
+      if [[ $layout == leaf ]]; then
+        printf 'user state\n' >"$home/.config/tmux/state"
+      elif [[ $layout == fold ]]; then
+        mkdir -p "$repo/tmux/.config/tmux"
+        printf 'source state\n' >"$repo/tmux/.config/tmux/state"
+        ln -s "$TMP/foreign-config" "$repo/tmux/.config/tmux/user-link"
+      fi
+      before=$(snapshot "$repo")
+      if HOME=$home EYRWSL_PACKAGES=$PACKAGES bash "$repo/scripts/prepare-stow.sh" --check-retired >/dev/null 2>&1; then
+        fail 'read-only retirement check accepted deployed retired links'
+      fi
+      [[ -L $home/.config/bash/functions/herdr && -L $home/.config/bash/functions/tdw ]] || fail 'read-only check mutated a retired link'
+      if prepare "$home" "$repo" linux-fixture >/dev/null 2>&1; then fail 'retirement accepted the wrong host'; fi
+      [[ -L $home/.config/bash/functions/herdr && -L $home/.config/bash/functions/tdw ]] || fail 'wrong-host retirement mutated a link'
+      HOME=$home EYRWSL_PACKAGES=$PACKAGES bash "$repo/scripts/prepare-stow.sh" --require-clone >/dev/null || fail 'retired links failed the clone guard'
+      [[ -L $home/.config/bash/functions/herdr ]] || fail 'clone guard mutated the retired Herdr link'
+      prepare "$home" "$repo" >/dev/null || fail "retirement failed: $layout $state"
+      [[ $(snapshot "$repo") == "$before" ]] || fail 'retirement changed source content'
+      for path in .config/bash/functions/herdr .config/bash/functions/tdw .config/bash/functions/tmux .config/tmux/tmux.conf; do
+        [[ ! -e $home/$path && ! -L $home/$path ]] || fail "retired endpoint remains: $path"
+      done
+      [[ -d $home/.config/bash/functions && ! -L $home/.config/bash/functions &&
+        $(<"$home/.config/bash/functions/user-state") == 'retained helper state' ]] || fail 'retirement changed unrelated helper state'
+      if [[ $layout == leaf ]]; then
+        [[ -d $home/.config/tmux && $(<"$home/.config/tmux/state") == 'user state' ]] || fail 'real tmux directory/state was removed'
+      else
+        [[ ! -L $home/.config/tmux ]] || fail 'retired fold remains'
+        [[ $layout != fold || -L $repo/tmux/.config/tmux/user-link ]] || fail 'fold contents were traversed'
+      fi
+      prepare "$home" "$repo" >/dev/null || fail 'retirement is not idempotent'
+      HOME=$home EYRWSL_PACKAGES=$PACKAGES bash "$repo/scripts/prepare-stow.sh" --check-retired >/dev/null || fail 'retirement verification failed after cleanup'
+      deploy "$home" "$repo" >/dev/null 2>&1 || fail 'new package restow failed after retirement'
+    done
+  done
+}
+
+case_retired_refusals() {
+  local scenario home repo target path before out
+  for scenario in foreign lookalike newline sibling-source regular fifo directory foreign-fold lookalike-fold newline-fold regular-parent fifo-parent foreign-parent redirected-source; do
+    home="$TMP/retired-refuse-$scenario/home"; repo="$home/Projects/eyrwsl"
+    mkdir -p "$home"
+    make_retired_deployment "$home" "$repo" leaf pulled
+    target="$home/.config/tmux/tmux.conf"
+    rm -- "$target"
+    case $scenario in
+      foreign) ln -s "$TMP/other/tmux/.config/tmux/tmux.conf" "$target" ;;
+      lookalike) ln -s "$repo-lookalike/tmux/.config/tmux/tmux.conf" "$target" ;;
+      newline) ln -s "$repo/tmux/.config/tmux/tmux.conf"$'\n' "$target" ;;
+      sibling-source) ln -s "$repo/bash/.config/bash/envs" "$target" ;;
+      regular) printf 'keep\n' >"$target" ;;
+      fifo) mkfifo "$target" ;;
+      directory) mkdir "$target" ;;
+      foreign-fold|lookalike-fold|newline-fold|regular-parent|fifo-parent)
+        rmdir "$home/.config/tmux"
+        case $scenario in
+          foreign-fold) mkdir -p "$TMP/foreign-fold"; ln -s "$TMP/foreign-fold" "$home/.config/tmux" ;;
+          lookalike-fold) ln -s "$repo-lookalike/tmux/.config/tmux" "$home/.config/tmux" ;;
+          newline-fold) ln -s "$repo/tmux/.config/tmux"$'\n' "$home/.config/tmux" ;;
+          regular-parent) printf 'keep\n' >"$home/.config/tmux" ;;
+          fifo-parent) mkfifo "$home/.config/tmux" ;;
+        esac ;;
+      foreign-parent)
+        rm -- "$home/.config/bash/functions/herdr" "$home/.config/bash/functions/tdw" "$home/.config/bash/functions/tmux"
+        rmdir "$home/.config/bash/functions"
+        ln -s "$TMP/other/bash/.config/bash/functions" "$home/.config/bash/functions" ;;
+      redirected-source)
+        mkdir -p "$repo/tmux/.config" "$TMP/redirected"
+        ln -s "$TMP/redirected" "$repo/tmux/.config/tmux"
+        ln -s "$repo/tmux/.config/tmux/tmux.conf" "$target" ;;
+    esac
+    # An independently removable active fold must survive every late refusal.
+    rm -- "$home/.config/yazi/yazi.toml"
+    rmdir "$home/.config/yazi"
+    ln -s "$repo/yazi/.config/yazi" "$home/.config/yazi"
+    before=$(find "$home/.config" -printf '%p %y %l\n' | sort)
+    if prepare "$home" "$repo" >/dev/null 2>&1; then fail "retirement accepted $scenario"; fi
+    [[ $(find "$home/.config" -printf '%p %y %l\n' | sort) == "$before" ]] || fail "retirement mutated before $scenario refusal"
+    # Exercise real Make guard ordering for a retired-only wrong-clone link.
+    if [[ $scenario == foreign ]]; then
+      for path in clean stow restow unstow wt-push; do
+        if out=$(HOME=$home PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL make --no-print-directory -C "$repo" "$path" 2>&1); then fail "$path accepted foreign retirement"; fi
+        [[ $out == *'another clone'* ]] || fail "$path missed retired clone guard: $out"
+      done
+    fi
+  done
+}
+
+case_retired_herdr_refusals() {
+  local scenario home repo target source='bash/.config/bash/functions/herdr' before flag out
+  for scenario in foreign live-foreign lookalike newline sibling-source regular fifo directory foreign-parent redirected-source; do
+    home="$TMP/herdr-refuse-$scenario/home"; repo="$home/Projects/eyrwsl"
+    mkdir -p "$home"
+    make_retired_deployment "$home" "$repo" leaf pulled
+    target="$home/.config/bash/functions/herdr"
+    rm -- "$target"
+    case $scenario in
+      foreign) ln -s "$TMP/other/$source" "$target" ;;
+      live-foreign)
+        printf 'foreign helper\n' >"$TMP/foreign-herdr"
+        ln -s "$TMP/foreign-herdr" "$target" ;;
+      lookalike) ln -s "$repo-lookalike/$source" "$target" ;;
+      newline) ln -s "$repo/$source"$'\n' "$target" ;;
+      sibling-source) ln -s "$repo/bash/.config/bash/envs" "$target" ;;
+      regular) printf 'keep helper\n' >"$target" ;;
+      fifo) mkfifo "$target" ;;
+      directory) mkdir "$target" ;;
+      foreign-parent)
+        rm -- "$home/.config/bash/functions/tdw" "$home/.config/bash/functions/tmux"
+        rmdir "$home/.config/bash/functions"
+        ln -s "$TMP/other/bash/.config/bash/functions" "$home/.config/bash/functions" ;;
+      redirected-source)
+        # Isolate this endpoint; associative-map iteration need not report it first.
+        rm -- "$home/.config/bash/functions/tdw" "$home/.config/bash/functions/tmux"
+        mv -- "$repo/bash/.config/bash/functions" "$TMP/redirected-herdr"
+        ln -s "$TMP/redirected-herdr" "$repo/bash/.config/bash/functions"
+        ln -s "$repo/$source" "$target" ;;
+    esac
+    rm -- "$home/.config/yazi/yazi.toml"
+    rmdir "$home/.config/yazi"
+    ln -s "$repo/yazi/.config/yazi" "$home/.config/yazi"
+    before=$(find "$home/.config" -printf '%p %y %l\0' | sort -z | sha256sum)
+    for flag in '' --require-clone --check-retired; do
+      if out=$(HOME=$home EYRWSL_PACKAGES=$PACKAGES PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL bash "$repo/scripts/prepare-stow.sh" ${flag:+"$flag"} 2>&1); then
+        fail "$flag accepted retired Herdr $scenario"
+      fi
+      [[ $out == *"$target "* || $out == *"${target%/*} "* ]] || fail "wrong Herdr refusal: $out"
+      [[ $(find "$home/.config" -printf '%p %y %l\0' | sort -z | sha256sum) == "$before" ]] || fail "Herdr $scenario refusal changed deployed entries"
+      [[ $scenario != regular || $(<"$target") == 'keep helper' ]] || fail 'Herdr refusal changed a regular helper'
+      [[ $scenario != live-foreign || $(<"$TMP/foreign-herdr") == 'foreign helper' ]] || fail 'Herdr refusal changed foreign content'
+    done
+    if [[ $scenario == foreign ]]; then
+      for flag in clean stow restow unstow wt-push; do
+        if out=$(HOME=$home PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL make --no-print-directory -C "$repo" "$flag" 2>&1); then
+          fail "$flag accepted a foreign retired Herdr link"
+        fi
+        [[ $out == *"$target is not the exact retired link"* ]] || fail "wrong Herdr Make guard refusal: $out"
+        [[ $(find "$home/.config" -printf '%p %y %l\0' | sort -z | sha256sum) == "$before" ]] || fail 'Herdr Make refusal changed deployed entries'
+      done
+    fi
+  done
+}
+
+case_retired_source_present() {
+  local source kind layout home repo path before out flag
+  for source in bash/.config/bash/functions/herdr bash/.config/bash/functions/tdw bash/.config/bash/functions/tmux tmux/.config/tmux/tmux.conf; do
+    for kind in regular dangling-symlink live-symlink fifo; do
+      for layout in leaf fold; do
+        home="$TMP/source-present-${source##*/}-$kind-$layout/home"; repo="$home/Projects/eyrwsl"
+        mkdir -p "$home"
+        make_retired_deployment "$home" "$repo" "$layout" pulled
+        path="$repo/$source"
+        mkdir -p "${path%/*}"
+        case $kind in
+          regular) printf 'restored source\n' >"$path" ;;
+          dangling-symlink) ln -s "$TMP/absent"$'\n' "$path" ;;
+          live-symlink) ln -s "$repo/bash/.config/bash/envs" "$path" ;;
+          fifo) mkfifo "$path" ;;
+        esac
+        before=$(find "$home/.config" -printf '%p %y %l\n' | sort)
+        for flag in '' --require-clone --check-retired; do
+          if out=$(HOME=$home EYRWSL_PACKAGES=$PACKAGES PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL bash "$repo/scripts/prepare-stow.sh" ${flag:+"$flag"} 2>&1); then
+            fail "$flag accepted restored retired $source ($kind, $layout)"
+          fi
+          [[ $out == *'retired source still exists:'* ]] || fail "wrong source refusal: $out"
+          [[ $(find "$home/.config" -printf '%p %y %l\n' | sort) == "$before" ]] || fail 'source refusal unlinked deployed entries'
+          [[ -e $path || -L $path ]] || fail 'source refusal removed source content'
+        done
+      done
+    done
+  done
+}
+
+case_retired_parent_metadata() {
+  local home="$TMP/parent-metadata/home" repo="$TMP/parent-metadata/repo" dir mode out flag unsafe status observed_mode
+  mkdir -p "$home"
+  make_retired_deployment "$home" "$repo" leaf pulled
+  rm -- "$home/.config/nvim/init.lua" "$home/.config/nvim/lua/config/options.lua"
+  rmdir "$home/.config/nvim/lua/config" "$home/.config/nvim/lua" "$home/.config/nvim"
+  ln -s "$repo/nvim/.config/nvim" "$home/.config/nvim"
+  # Use actual permissions; model a different owner through stat rather than
+  # requiring chown privileges or adding a production fixture override.
+  mkdir "$TMP/metadata-bin"
+  cat >"$TMP/metadata-bin/stat" <<'SH'
+#!/bin/bash
+if [[ ${*: -1} == "$EYR_TEST_UNSAFE_DIR" ]]; then
+  printf '%s 755\n' "$((EUID + 1))"
+else
+  exec "$EYR_TEST_REAL_STAT" "$@"
+fi
+SH
+  chmod +x "$TMP/metadata-bin/stat"
+  for dir in "$home" "$home/.config" "$home/.config/bash" "$home/.config/bash/functions" "$home/.config/tmux"; do
+    for mode in 775 757 500 300 600 owner; do
+      if [[ $mode != owner ]]; then chmod "$mode" "$dir"; fi
+      for flag in '' --require-clone --check-retired; do
+        status=0
+        if [[ $mode == owner ]]; then
+          out=$(HOME=$home EYRWSL_PACKAGES=$PACKAGES PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL EYR_TEST_UNSAFE_DIR=$dir EYR_TEST_REAL_STAT="$(command -v stat)" PATH="$TMP/metadata-bin:$PATH" bash "$repo/scripts/prepare-stow.sh" ${flag:+"$flag"} 2>&1) || status=$?
+        else
+          out=$(HOME=$home EYRWSL_PACKAGES=$PACKAGES PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL bash "$repo/scripts/prepare-stow.sh" ${flag:+"$flag"} 2>&1) || status=$?
+        fi
+        # Restore access before asserting or allowing EXIT cleanup to run.
+        observed_mode=$(stat -c %a -- "$dir")
+        chmod 755 "$dir"
+        ((status != 0)) || fail "$flag accepted retirement parent $dir ($mode)"
+        [[ $out == *'unsafe retirement directory'* ]] || fail "wrong metadata refusal: $out"
+        [[ $mode == owner || $observed_mode == "$mode" ]] || fail 'metadata refusal repaired permissions'
+        [[ -L $home/.config/nvim ]] || fail 'metadata refusal unlinked the earlier queued fold'
+        for unsafe in .config/bash/functions/herdr .config/bash/functions/tdw .config/bash/functions/tmux .config/tmux/tmux.conf; do
+          [[ -L $home/$unsafe ]] || fail "metadata refusal unlinked $unsafe"
+        done
+        if [[ $mode != owner ]]; then chmod "$mode" "$dir"; fi
+      done
+      chmod 755 "$dir"
+    done
+  done
+  # The boundary is retirement-specific, not a new active-parent policy.
+  chmod 777 "$home/.config/yazi"
+  prepare "$home" "$repo" >/dev/null || fail 'retirement metadata checks broadened to unrelated active parents'
+  [[ -L $home/.config/yazi/yazi.toml ]] || fail 'unrelated active leaf was removed'
+  ln -s "$home" "$TMP/parent-metadata/home-alias"
+  if out=$(HOME="$TMP/parent-metadata/home-alias/" EYRWSL_PACKAGES=$PACKAGES bash "$repo/scripts/prepare-stow.sh" --check-retired 2>&1); then
+    fail 'retirement accepted a symlinked HOME'
+  fi
+  [[ $out == *'HOME must use a real'* ]] || fail "wrong HOME alias refusal: $out"
+}
+
+case_config_ancestor() {
+  local scenario base home repo target before flag out
+  for scenario in foreign foreign-newline clone-newline source-redirect source-newline owned-bash owned-tmux; do
+    base="$TMP/config-ancestor-$scenario"; home="$base/home"; repo="$base/repo"
+    mkdir -p "$home"
+    make_clone "$repo"
+    mkdir -p "$repo/bash/.local/bin"
+    printf 'retained\n' >"$repo/bash/.local/bin/fixture"
+    ln -s "$base/old/bash/.bashrc" "$home/.bashrc"
+    ln -s "$repo/bash/.local" "$home/.local"
+    case $scenario in
+      foreign) target="$base/other-clone/bash/.config" ;;
+      foreign-newline) target="$base/other-clone/bash/.config"$'\n' ;;
+      clone-newline) target="$repo/bash/.config"$'\n' ;;
+      source-redirect|source-newline)
+        target="$base/retained-config"
+        [[ $scenario != source-newline ]] || target+=$'\n'
+        mv -- "$repo/bash/.config" "$target"
+        ln -s "$target" "$repo/bash/.config"
+        target="$repo/bash/.config" ;;
+      owned-bash) target='../repo/bash/.config' ;;
+      owned-tmux)
+        mkdir -p "$repo/tmux/.config"
+        printf 'retained\n' >"$repo/tmux/.config/user-state"
+        target="$repo/tmux/.config" ;;
+    esac
+    ln -s "$target" "$home/.config"
+    if [[ $scenario == owned-* ]]; then
+      prepare "$home" "$repo" >/dev/null || fail 'exact owned .config fold was refused'
+      [[ ! -L $home/.config && -f $repo/bash/.local/bin/fixture ]] || fail 'owned .config retirement changed source data'
+      [[ $scenario != owned-tmux || -f $repo/tmux/.config/user-state ]] || fail 'tmux ancestor retirement removed state'
+      continue
+    fi
+    before=$(find "$home" -printf '%p %y %l\0' | sort -z | sha256sum)
+    for flag in '' --require-clone --check-retired; do
+      if out=$(HOME=$home EYRWSL_PACKAGES=$PACKAGES PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL bash "$repo/scripts/prepare-stow.sh" ${flag:+"$flag"} 2>&1); then
+        fail "$flag accepted unsafe .config ancestor: $scenario"
+      fi
+      [[ $out == *'not an exact retirement ancestor fold'* ]] || fail "wrong .config refusal: $out"
+      [[ $(find "$home" -printf '%p %y %l\0' | sort -z | sha256sum) == "$before" ]] || fail '.config refusal changed other pending removals'
+    done
+  done
+}
+
+case_root_identities() {
+  local base="$TMP/root-identities" home repo other_home other_repo scenario selected_home script out flag neighbor
+  home="$base/home"; other_home="$home"$'\n'
+  repo="$base/repo"; other_repo="$repo"$'\n'
+  mkdir -p "$home/.config/bash/functions" "$other_home/.config/bash/functions"
+  make_clone "$repo"
+  make_clone "$other_repo"
+  for neighbor in "$home" "$other_home"; do
+    ln -s "$repo/bash/.config/bash/functions/herdr" "$neighbor/.config/bash/functions/herdr"
+    ln -s "$repo/bash/.config/bash/functions/tdw" "$neighbor/.config/bash/functions/tdw"
+    ln -s "$base/old/bash/.bashrc" "$neighbor/.bashrc"
+  done
+  ln -s "$other_home" "$base/home-alias"
+  ln -s "$other_repo" "$base/repo-alias"
+  mkdir "$repo/scripts"$'\n'
+  cp -- "$ROOT/scripts/prepare-stow.sh" "$repo/scripts"$'\n/prepare-stow.sh'
+  # A trimmed dirname would follow this neighboring directory to another root.
+  mv -- "$repo/scripts" "$repo/saved-scripts"
+  ln -s "$other_repo/scripts" "$repo/scripts"
+  for scenario in home clone both home-alias clone-alias relative-clone dirname; do
+    selected_home=$home; script="$repo/saved-scripts/prepare-stow.sh"
+    case $scenario in
+      home) selected_home=$other_home ;;
+      clone) script="$other_repo/scripts/prepare-stow.sh" ;;
+      both) selected_home=$other_home; script="$other_repo/scripts/prepare-stow.sh" ;;
+      home-alias) selected_home="$base/home-alias" ;;
+      clone-alias) script="$base/repo-alias/scripts/prepare-stow.sh" ;;
+      dirname) script="$repo/scripts"$'\n/prepare-stow.sh' ;;
+    esac
+    for flag in '' --require-clone --check-retired --check-home; do
+      if [[ $scenario == relative-clone ]]; then
+        if out=$(builtin cd -- "$other_repo" && HOME=$home EYRWSL_PACKAGES=$PACKAGES PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL bash scripts/prepare-stow.sh ${flag:+"$flag"} 2>&1); then
+          fail 'relative invocation accepted a newline canonical clone root'
+        fi
+      elif out=$(HOME=$selected_home EYRWSL_PACKAGES=$PACKAGES PREPARE_STOW_KERNEL_RELEASE=$WSL_KERNEL bash "$script" ${flag:+"$flag"} 2>&1); then
+        fail "$flag accepted root lookalike: $scenario"
+      fi
+      [[ $out == *'control characters'* ]] || fail "wrong root-identity refusal: $out"
+      for neighbor in "$home" "$other_home"; do
+        [[ -L $neighbor/.config/bash/functions/herdr && -L $neighbor/.config/bash/functions/tdw && -L $neighbor/.bashrc ]] || fail 'root refusal changed a neighboring HOME'
+      done
+    done
+  done
+  rm -- "$repo/scripts"
+  mv -- "$repo/saved-scripts" "$repo/scripts"
+  mkdir "$base/temp" "$base/temp"$'\n' "$base/interop"$'\n'
+  ln -s "$base/temp"$'\n' "$base/temp-alias"
+  for scenario in temporary interop; do
+    if [[ $scenario == temporary ]]; then
+      if out=$(TMPDIR="$base/temp-alias" prepare "$home" "$repo" 2>&1); then fail 'newline canonical temporary root was accepted'; fi
+    else
+      if out=$(PREPARE_STOW_INTEROP_ROOT="$base/interop"$'\n' prepare "$home" "$repo" 2>&1); then fail 'newline interop root was accepted'; fi
+    fi
+    [[ $out == *'control characters'* ]] || fail "wrong fixture-root refusal: $out"
+    [[ -L $home/.config/bash/functions/herdr && -L $home/.config/bash/functions/tdw && -L $home/.bashrc ]] || fail 'fixture-root refusal removed links'
+  done
+}
+
 case_fresh_home
 case_owned_entries
 case_no_folding
@@ -307,4 +677,11 @@ case_directory_at_leaf
 case_missing_packages
 case_wsl_gate
 case_make_guards
+case_retired_links
+case_retired_refusals
+case_retired_herdr_refusals
+case_retired_source_present
+case_retired_parent_metadata
+case_config_ancestor
+case_root_identities
 printf 'ok:   prepare-stow preserves regular files and foreign entries; actual Make deployment targets guard before cleanup, including -j\n'

@@ -12,7 +12,7 @@ Omarchy is an opinionated Arch Linux distribution targeting a full desktop envir
 
 **Guiding principles:**
 
-1. **Follow Omarchy conventions by default.** Aliases, keybindings, tmux layout ratios, and tool choices should stay close to Omarchy unless a WSL or non-desktop constraint requires a change.
+1. **Follow Omarchy conventions by default.** Aliases, keybindings, and tool choices should stay close to Omarchy unless a documented workflow, WSL or non-desktop constraint requires a change.
 2. **Adapt only what breaks or does not apply.** Desktop-bound behavior, GUI launchers, and hardware workflows are omitted because they do not fit WSL.
 3. **Keep Windows-specific behavior explicit.** Anything that depends on `clip.exe`, `powershell.exe`, or Windows Terminal should be documented as a Windows interop concern.
 4. **Use GNU Stow for dotfile management.** Omarchy uses direct file copies and packaged assets. This repo uses symlink-based package ownership for clearer separation and reuse.
@@ -21,7 +21,7 @@ Omarchy is an opinionated Arch Linux distribution targeting a full desktop envir
 
 ## Reference Sources
 
-- [omacom/omarchy](https://github.com/omacom/omarchy) - main repo for bash, tmux, starship, git, fastfetch, btop, and editorconfig references
+- [omacom/omarchy](https://github.com/omacom/omarchy) - main repo for bash, native Herdr conventions, starship, git, fastfetch, btop, and editorconfig references; copied desktop launch recipes remain out of scope
 - [omacom/omarchy-pkgs](https://github.com/omacom/omarchy-pkgs) - package builds, including the Omarchy Neovim package
 - [mise](https://mise.jdx.dev/) and the [Arch `mise` package](https://archlinux.org/packages/extra/x86_64/mise/) - tool manager upstream and signed Arch package; its registry names the backend each AI tool installs from
 - [Claude Code](https://code.claude.com/docs) - terminal agent upstream; installed through mise's `claude` registry entry
@@ -40,7 +40,6 @@ Omarchy is an opinionated Arch Linux distribution targeting a full desktop envir
 - [GNU Stow Manual](https://www.gnu.org/software/stow/manual/stow.html) - symlink management and package structure
 - [Bash Reference Manual](https://www.gnu.org/software/bash/manual/bash.html) - builtins, expansion, scripting
 - [Starship Configuration](https://starship.rs/config/) - module options and format strings
-- [Tmux Wiki](https://github.com/tmux/tmux/wiki) - usage and recipes
 - [LazyVim Docs](https://www.lazyvim.org/) - installation, extras, and plugin conventions
 - [Neovim Docs](https://neovim.io/doc/) - options, API, and Lua reference
 - [lazy.nvim Docs](https://lazy.folke.io/) - plugin manager configuration
@@ -48,7 +47,7 @@ Omarchy is an opinionated Arch Linux distribution targeting a full desktop envir
 - [btop](https://github.com/aristocratos/btop) - config options and themes
 - [fastfetch Wiki](https://github.com/fastfetch-cli/fastfetch/wiki) - modules and JSON config
 
-Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and btop use the semantic palette from `themes/gruvbox/colors.toml`; Neovim selects `ellisonleao/gruvbox.nvim`; tmux and Yazi use ANSI names resolved through Windows Terminal. OpenCode's `system` theme is selected by EyrAgents and inherits the same terminal palette.
+Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and btop use the semantic palette from `themes/gruvbox/colors.toml`; Neovim selects `ellisonleao/gruvbox.nvim`; Yazi uses ANSI names resolved through Windows Terminal. OpenCode's `system` theme is selected by EyrAgents and inherits the same terminal palette.
 
 ## Intentional Deviations
 
@@ -61,9 +60,10 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 ### Dotfile Management
 
 - GNU Stow with symlinked package ownership replaces Omarchy's file-copy and package-install model.
-- `make clean` derives the owned paths from the package files, classifies every one before changing anything, and removes only folded directory links left by a folding deployment and dangling links from a moved or deleted clone; live leaf links stay for Stow. Regular files, foreign links, and special files at owned paths abort untouched.
+- `make clean` derives active owned paths from package files and carries exact retired mappings independently of Git and `PACKAGES`: `.config/bash/functions/{tdw,tmux,herdr}`, `.config/tmux/tmux.conf`, and the former `.config/tmux` fold. The `~/.config/bash/functions/herdr` endpoint maps only to this clone's former `bash/.config/bash/functions/herdr`. It classifies all endpoints and parents before changing anything and never traverses a queued fold. It removes only owned folds, recognized dangling active-package links, and exact retired links into this clone; other live leaf links stay for Stow. Retired paths do not use a broader stale-clone heuristic. Real directories and user data/state stay; regular files, foreign links, and special files at owned endpoints abort untouched. Use guarded clean, preview, then restow; restow itself does not retire links. Verification is read-only after pull and pending known source deletions, without exempting unrelated missing sources.
 - Every host-writing Make target checks host and deployed-clone ownership before mutation; direct `scripts/wt-diff.sh --push` does so before destination discovery. The host guard requires WSL2, enabled `binfmt_misc`, an enabled `WSLInterop` or `WSLInterop-late` handler, resolving `clip.exe`/`powershell.exe`, and a successful five-second, no-profile PowerShell probe. `.NOTPARALLEL` serializes one Make invocation, not independent deployments or disk failures. Complete cleanup preflight is preservation-safe refusal, not a rollback transaction.
 - `make verify` first checks the active WSL2/interoperability host contract, then runs `lint`, `check`, and `twins`, followed by the full verifier's command baseline, AI tools installed by and resolving through a paranoid-mode mise, deployed package ownership with real managed parents, GitHub no-reply Git identity, and owned config parsers and runtimes. `make check` runs the parser, runtime, and fixture parts anywhere.
+- Retirement additionally refuses any still-present exact mapped source entry, including a dangling symlink; source directories containing unrelated retained data stay allowed. HOME and real retired-path ancestors must be caller-owned, readable/writable/searchable and not group/world-writable. Refusal precedes any unlink or repair; the metadata policy does not extend to unrelated active-package parents.
 - Stow runs with `--no-folding`, so every managed parent stays a real directory that tools may write into and only leaf files are links.
 - `/omasync` owns reference-clone maintenance and upstream comparison; `docs/maintenance.md` owns unresolved decisions, deferred work, active limitations, and dated evidence.
 - `make refs` reports and keeps stale clones; listed default branches must reach exact fetched upstream parity by fast-forward. Atomic, non-forced fetches preserve existing local tags and annotations, import new tags, and prune only origin tracking branches. Checkout/merge use `--no-overwrite-ignore` so ignored files in listed clones are not overwritten. Ahead-only/divergent branches and tag/file conflicts refuse; resolution and any stale-clone disposal need separate review, including all refs, stashes, and ignored/untracked content before disposal.
@@ -81,6 +81,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - The Gruvbox color scheme maps Omarchy's semantic terminal palette to all 16 ANSI colors, cursor, selection, foreground, and background.
 - `defaultProfile` uses the dynamic profile name `archlinux`; host-specific profile entries are omitted, and the `Windows.Terminal.Wsl` generator is disabled so the current `Microsoft.WSL` profile is unambiguous.
 - Windows Terminal settings are never stowed. `make wt-push` resolves the active Windows account through PowerShell, validates both files, creates a timestamped adjacent backup only when they differ, and atomically deploys the tracked file; `make wt-diff` reports normalized drift without changing either side.
+- `alt+enter` remains unbound in `windows-terminal/settings.json` (`"id": null`) so Windows Terminal's fullscreen default does not swallow it. Omarchy's Herdr map also uses `Alt+Enter`; local tmux retirement does not change or deploy Terminal settings.
 
 ### Bash
 
@@ -90,15 +91,14 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - Dropped aliases: `open` (GUI-only), `d='docker'`, and `r='rails'`.
 - The kitty-conditional `ff` image-preview variant is omitted; Windows Terminal is not kitty, so the conditional would always take the plain `bat` branch kept here.
 - `y()` is added for Yazi cd-on-exit support. Yazi is not part of Omarchy.
-- `tdw` adds one project-named tmux session (Git root, else current directory), with a new window named `claude`, `codex`, or `opencode`. AI stays full-height left, `$EDITOR` above a shell equally stacked right, with equal columns and agent focus, instead of Omarchy's 70/30 columns and full-width 15% shell strip. Inside tmux, creation uses the full window size. `tdw <cc|cx|oc> [-c]` chooses the agent; `-c` uses `claude -c`, `codex resume --last`, or `opencode -c`. Bare `tdw` attaches without changing existing names/layouts. New windows disable automatic/application renaming and retain the outer `#h:#S:#W` title.
-- `hdw` is the Herdr counterpart, with the same project workspace, agent-named new tab, geometry, choice, continuation, and focus rules. Its root-collision record stays at `${XDG_STATE_HOME:-$HOME/.local/state}/hdw/roots` in label/workspace-ID/root TSV form. Bare `hdw` refocuses unchanged; cold startup starts Herdr headless, and failure stops with manual-start guidance rather than plain-attach success.
-- Both launchers serialize lookup/create/state changes with stable locks, build under unique pending identities, and validate the complete layout and pane ownership before sending input. Rollback targets only their own creation; Herdr roots updates use unique same-filesystem snapshots and atomic rename. If rollback cannot be verified, retain the reported identity/recovery evidence for manual review. These are failure-preserving multi-call workflows, not server-side atomic transactions.
-- The `t`/`h` prefix follows Omarchy's multiplexer lettering. These helpers are additive alongside Omarchy's `tdl` and `hdl`; `tdw`, `hdw`, and their declared tests/fixtures are byte-identical twins with EyrArcHy.
-- Omarchy's Herdr helpers `hdl`, `hdlm`, and `hsl` are adopted. `hds` is omitted because it invokes Hunk, one of the mise-managed Omarchy tools this repo leaves out (see Mise).
-- Omarchy's SSH port-forwarding and dropped-connection recovery helpers are adopted. `rsw <source> <destination>` keeps its interface but uses persistent inotify monitoring and event consumption during transfers, coalesces bursts, retries transfer failures after five seconds, and checks for reconciliation between transfers, 60 seconds after the last successful completion. It never adds `--delete`, so destination-only files remain. Startup reports readiness/PID/log path, not sync success; monitor/transfer failures are logged under `${XDG_STATE_HOME:-$HOME/.local/state}/rsw`. `lsw`/`dsw` manage only watchers started by this implementation via checked readiness/process records. SSH sockets use `XDG_RUNTIME_DIR/rsw-sockets`, falling back to `rsw-sockets` under the rsw state directory, not the credential-store tree. Runtime packages remain official `rsync` and `inotify-tools` plus the existing core utilities.
+- `hdw <cc|cx|oc> [-c]` creates and focuses a new workspace inside an already-running Herdr using the caller's current physical directory, not an inferred Git root. A populated tab or inactive source workspace is allowed with valid pane identity and selected-tab context; repeated calls and generated bottom-right-shell chaining each create another workspace. AI stays full-height left, Neovim above a shell equally stacked right, with equal columns and AI focus. Commands are `claude`, `codex`, or `opencode`; `-c` uses `claude -c`, `codex resume --last`, or `opencode -c`. This geometry intentionally differs from Omarchy's `hdl` recipe.
+- Existing names/layouts remain untouched apart from normal global workspace focus. New naming stays with Herdr, with no `--label` or rename/metadata writes; the new default tab displays positional `1`. Bare `hdw` is usage. There is no workspace reuse, server startup, client attachment or roots registry. Old state/recovery files, including `${XDG_STATE_HOME:-$HOME/.local/state}/hdw/roots`, remain untouched and unused. Native Herdr controls own workspace/tab navigation.
+- Cooperating calls are serialized; caller identity, pre-creation workspace inventory, the new root's opaque terminal identity, exact membership and complete geometry are checked before input. Cleanup may close only proven new split panes before possible input, never any workspace/tab/root/caller. A new workspace/root always remains on failure; possible input or uncertain ownership preserves remaining state with original/new recovery context. These are failure-preserving multi-call workflows, not server-side atomic transactions.
+- `hdw` and its declared tests/fixture are byte-identical twins with EyrArcHy. Native Herdr binary/configuration/keymap remain; open it with `herdr`. EyrWSL does not carry copied Omarchy `hdl`/`hdlm`/`hsl`/`hds` recipes or `h`/`t` aliases, and sync must not import desktop launch helpers.
+- Omarchy's SSH port-forwarding and dropped-connection recovery helpers are adopted; the reconnect helper's remote-tmux context remains valid without local tmux. `rsw <source> <destination>` keeps its interface but uses persistent inotify monitoring and event consumption during transfers, coalesces bursts, retries transfer failures after five seconds, and checks for reconciliation between transfers, 60 seconds after the last successful completion. It never adds `--delete`, so destination-only files remain. Startup reports readiness/PID/log path, not sync success; monitor/transfer failures are logged under `${XDG_STATE_HOME:-$HOME/.local/state}/rsw`. `lsw`/`dsw` manage only watchers started by this implementation via checked readiness/process records. SSH sockets use `XDG_RUNTIME_DIR/rsw-sockets`, falling back to `rsw-sockets` under the rsw state directory, not the credential-store tree. Runtime packages remain official `rsync` and `inotify-tools` plus the existing core utilities.
 - `ga <branch>` creates beside the actual checkout root even from a subdirectory and checks branch/add/navigation failures. `gd` takes no arguments and uses Git worktree metadata, not a directory-name guess; it confirms the real path/branch, rechecks HEAD/branch, and refuses dirty work or commits not contained in the primary worktree's current HEAD before ordinary `git worktree remove` and `git branch -d`. Directory changes use `builtin cd` so the interactive zoxide alias cannot reinterpret reviewed paths. A failed navigation preserves the created checkout; failed branch deletion retains the branch and reports the partial outcome. Force is a separate manual decision, not a helper option.
 - Interactive Bash exports `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` and `OPENCODE_ENABLE_EXA=1` so terminal-launched OpenCode skips the Claude Code skill copies, reads `.agents/skills` natively, and exposes its configured web-search tool. EyrAgents owns OpenCode configuration; this repo owns the WSL host environment. Shell initialization removes inherited `$HOME/.opencode/bin` entries and appends the user-level directories after existing system entries, so system binaries retain precedence: `/usr/local/bin`, then the mise shims and `~/.local/bin` in the order Omarchy's `env-bootstrap` uses.
-- The AI tools run as EyrAgents configures them: `claude`, `codex`, and `opencode` are launched plain and inherit EyrAgents' effort pin and permission rules. Omarchy's launch aliases `c`, `cx`, `cy`, `ic`, `ix`, and `icx` set permission modes, approval flags, and `tdl` targets that EyrAgents and the workspace launchers own, so this repo does not carry them.
+- The AI tools load applicable EyrAgents settings. EyrWSL carries no Omarchy AI launch aliases (`c`, `cx`, `cy`, `ic`, `ix`, `icx`); `hdw` sends full `claude`, `codex`, or `opencode` commands with only the selected continuation form. Its `cc`/`cx`/`oc` arguments are not aliases or an isolated harness profile. ArcHy's stock shortcut flags apply only to those stock launches, not `hdw`.
 - Omarchy's mise shell handling is adopted verbatim: `mise activate bash` opens `init`, `set +h` closes `shell`, and the `mup` alias is carried as plain `mise up`, without Omarchy's `MISE_MINIMUM_RELEASE_AGE=0` prefix (see Mise). Omarchy also sources its PATH bootstrap from `/etc/profile.d` and PAM so login shells and SSH commands find the mise tools; here `envs` is the only source, so shells that skip `.bashrc` (`wsl.exe -e`, SSH commands) see the mise directories only when the system PATH already has them.
 - No `pacman` alias and no AUR helper. Omarchy routes updates through `omarchy-update`, which is Hyprland/desktop-bound and runs `mise up` after its package step; this repo uses plain `pacman -Syu` against official repos only, which carries the packaged mise, followed by `mup` for the mise-managed tools.
 
@@ -114,15 +114,10 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - The prompt shows `hostname` only during SSH sessions so remote shells are visually distinct from local ones while keeping the local prompt minimal.
 - The `conflicted`, `up_to_date`, and `modified` Git status icons use Material Design Icons codepoints instead of Omarchy's Nerd Font private-use codepoints, matching the same broader-terminal-font compatibility rationale used for Fastfetch.
 
-### Tmux
+### Native Herdr Only
 
-- Upstream's `M-Enter`, `M-S-Enter`, and `M-Escape` pane bindings are adopted verbatim; `alt+enter` is unbound in `windows-terminal/settings.json` (`"id": null`) because Windows Terminal's default binds it to fullscreen and would swallow `M-Enter` before it reaches tmux.
-- The `?` keybindings-popup binding is omitted; it shells out to `omarchy-menu-tmux-keybindings`, which exists only on an Omarchy install.
-- Omarchy's binding descriptions and generic clipboard feature are adopted. The outer title is `#h:#S:#W`, retaining host, project session, and agent window. The Kitty-only extended-key feature is omitted because Windows Terminal is the host terminal.
-
-### Tmux Dev Layout
-
-- `tdl`, `tdlm`, and `tsl` retain Omarchy's terminal layouts. `tdl` selects `editor_pane` rather than the upstream baseline's unset `opencode_pane`; Hunk-dependent `tds` is omitted.
+- EyrWSL omits local tmux from the baseline package list, Stow configuration, Bash helpers (`tdw`, `tdl`, `tdlm`, `tsl`) and `t` alias. Copied Herdr recipes and alias `h` are also omitted, not the native Herdr application. The 42 baseline packages stay. Omarchy's desktop tmux remains upstream-owned, outside EyrWSL.
+- Source retirement does not uninstall an existing host package or kill sessions. Actual WSL retirement follows the guarded [host procedure](docs/maintenance.md#wsl-host-pass), preserving sessions, real directories and user state; inspect installed package ownership and reverse dependencies before exact package-removal approval. Do not force dependencies, use blanket `-Rns`/orphan cleanup, or overwrite Terminal settings for this migration.
 
 ### Neovim
 
@@ -188,7 +183,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - `omarchy-fish`, `omarchy-zsh`, and `omarchy-walker`
 - `drives` functions such as `iso2sd` and `format-drive`
 - `transcoding` functions for video and image conversion
-- Hunk-dependent `tds` and `hds` layouts
+- Omarchy Herdr/tmux launch recipes (`hdl`, `hdlm`, `hsl`, `hds`, `tdl`, `tdlm`, `tsl`, `tds`) and AI launch shortcuts
 - Omarchy's `open` and `a` shell helpers, which depend on desktop launchers or `omarchy-agent`
 - Hardware-focused tooling and desktop automation
 - Theme switching infrastructure not needed for fixed per-surface themes

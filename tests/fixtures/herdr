@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-"""A local Herdr protocol fixture. Never starts a terminal or an agent."""
+"""Offline v0.8.2 subset, never starts a terminal, server, client or agent.
+
+Wire fields and CLI forms: herdrdev/herdr tag v0.8.2, src/cli/{workspace,pane,runtime}.rs,
+src/api/schema/{workspaces,panes,tabs,response}.rs. terminal_id is opaque (terminal/id.rs),
+not a derived pane ID or an invented ownership token. Internal tree/labels,
+faults and call evidence below are fixture state, not RPC fields.
+"""
+import copy
+import fcntl
 import json
 import os
 from pathlib import Path
 import sys
-
-state_path = Path(os.environ["HDW_FIXTURE_STATE"])
-state = json.loads(state_path.read_text())
-args = sys.argv[1:]
-key = " ".join(args[:2])
-state.setdefault("calls", []).append(args)
-count = state.setdefault("counts", {}).get(key, 0) + 1
-state["counts"][key] = count
-fault = os.environ.get("HDW_INJECT", "").split(":")
-mode = fault[-1] if fault[:2] == [key, str(count)] else ""
 
 
 def public_number(number):
@@ -25,98 +23,358 @@ def public_number(number):
     return result or "0"
 
 
+def initial():
+    w = os.environ.get("HDW_WORKSPACE", "w1")
+    cwd = os.environ["HDW_CWD"]
+    panes = {}
+    tabs = {}
+    for number, pid, label in [(7, "p1", os.environ.get("HDW_LABEL", "1")), (9, "p9", "manual other tab")]:
+        tid = f"{w}:t{number}"
+        pid = f"{w}:{pid}"
+        panes[pid] = {"pane_id": pid, "terminal_id": f"term_a{number}", "workspace_id": w,
+                      "tab_id": tid, "focused": number == 7, "cwd": cwd, "label": "manual pane",
+                      "agent_status": "unknown", "revision": 1}
+        tabs[tid] = {"tab_id": tid, "workspace_id": w, "number": number, "label": label,
+                     "focused": number == 7, "pane_count": 1, "agent_status": "unknown"}
+    trees = {t: p for t, p in zip(tabs, panes)}
+    focused_panes = dict(trees)
+    if os.environ.get("HDW_POPULATED") == "1":
+        for number in (2, 3):
+            pid = f"{w}:p{number}"
+            panes[pid] = dict(panes[f"{w}:p1"], pane_id=pid, terminal_id=f"term_existing{number}", focused=False)
+        tabs[f"{w}:t7"]["pane_count"] = 3
+        trees[f"{w}:t7"] = {"direction": "down", "ratio": 0.5, "first": f"{w}:p1",
+                            "second": {"direction": "right", "ratio": 0.5, "first": f"{w}:p2", "second": f"{w}:p3"}}
+    # creation.rs: API focus booleans include global focus; local selection survives.
+    panes["wZ:p1"] = dict(panes[f"{w}:p1"], pane_id="wZ:p1", terminal_id="term_unrelated",
+                          workspace_id="wZ", tab_id="wZ:t1", focused=False)
+    tabs["wZ:t1"] = dict(tabs[f"{w}:t7"], tab_id="wZ:t1", workspace_id="wZ", number=1, pane_count=1, focused=False)
+    trees["wZ:t1"] = "wZ:p1"
+    focused_panes["wZ:t1"] = "wZ:p1"
+    workspaces = {ws: {"workspace_id": ws, "number": i, "label": label, "focused": ws == w,
+                       "pane_count": sum(p["workspace_id"] == ws for p in panes.values()),
+                       "tab_count": 2 if ws == w else 1, "active_tab_id": f"{ws}:t7" if ws == w else "wZ:t1",
+                       "agent_status": "unknown", "tokens": {"user": "keep"}}
+                  for i, (ws, label) in enumerate([(w, "manual project"), ("wZ", "unrelated workspace")], 1)}
+    return {"workspace_id": w, "workspaces": workspaces,
+            "tabs": tabs, "panes": panes, "trees": trees, "focused_panes": focused_panes,
+            "next": 2, "next_workspace": 2, "created": [], "calls": [], "counts": {}, "runs": [], "closed": [], "writes": [],
+            "original_workspace": w, "original_caller": f"{w}:p1", "original_tab": f"{w}:t7",
+            "validated": [], "cwd": cwd, "caller": f"{w}:p1", "tab": f"{w}:t7",
+            "area": json.loads(os.environ.get("HDW_AREA", '{"x":0,"y":0,"width":120,"height":80}')),
+            "gaps": os.environ.get("HDW_GAPS") == "1", "borders": os.environ.get("HDW_BORDERS") != "0"}
+
+
+state_path = Path(os.environ["HDW_FIXTURE_STATE"])
+args = sys.argv[1:]
+if args == ["--reset"]:
+    state_path.write_text(json.dumps(initial()))
+    sys.exit(0)
+
+# Model serialization of individual server RPCs, not of the multi-RPC helper.
+handle = state_path.open("r+")
+fcntl.flock(handle, fcntl.LOCK_EX)
+state = json.load(handle)
+
+
+def focus_workspace(workspace_id):
+    for w in state["workspaces"].values():
+        w["focused"] = w["workspace_id"] == workspace_id
+    for t in state["tabs"].values():
+        w = state["workspaces"][t["workspace_id"]]
+        t["focused"] = w["focused"] and w["active_tab_id"] == t["tab_id"]
+    for p in state["panes"].values():
+        p["focused"] = state["tabs"][p["tab_id"]]["focused"] and state["focused_panes"][p["tab_id"]] == p["pane_id"]
+
+
+# Test-only native UI selection, not a CLI form available to the helper.
+if len(args) == 2 and args[0] == "--focus":
+    selected = state["panes"][args[1]]
+    state["workspaces"][selected["workspace_id"]]["active_tab_id"] = selected["tab_id"]
+    state["focused_panes"][selected["tab_id"]] = selected["pane_id"]
+    focus_workspace(selected["workspace_id"])
+    handle.seek(0)
+    json.dump(state, handle)
+    handle.truncate()
+    handle.close()
+    sys.exit(0)
+
+
+key = " ".join(args[:2])
+state["calls"].append(args)
+count = state["counts"].get(key, 0) + 1
+state["counts"][key] = count
+# Keep attempted calls observable even when a protocol/safety assertion refuses.
+handle.seek(0)
+json.dump(state, handle)
+handle.truncate()
+handle.flush()
+mode = ""
+for fault in os.environ.get("HDW_INJECT", "").split(";"):
+    fields = fault.split(":")
+    if fields[:2] == [key, str(count)]:
+        mode = fields[-1]
+
+
 def finish(result=None, code=0):
-    if mode in ("replace", "replace-empty"):
-        # A new resource may reuse every public ID and label. Return a valid
-        # success reply from it, not a transport error or malformed object.
-        replacement = json.loads(json.dumps(state["workspaces"][wid]))
-        replacement["tokens"] = {} if mode == "replace-empty" else {"hdw_owner": "foreign"}
-        state["workspaces"][wid] = replacement
-        state["replacement"] = json.loads(json.dumps(replacement))
-        state["runs_at_replacement"] = len(state.get("runs", []))
-        if result is not None and "workspace" in result:
-            result["workspace"] = replacement
-    state_path.write_text(json.dumps(state))
-    if result is not None:
-        if mode == "invalid":
-            print("not JSON")
-        elif mode == "null":
-            print(json.dumps({"result": None}))
-        elif mode == "error":
-            print(json.dumps({"error": {"code": "fixture", "message": "injected"}}))
-        elif mode == "id":
-            print(json.dumps({"result": {"type": "pane_info", "pane": {"pane_id": ""}}}))
-        elif mode != "lost":
-            print(json.dumps({"id": "fixture", "result": result}))
-    sys.exit(1 if mode == "lost" else code)
+    handle.seek(0)
+    json.dump(state, handle)
+    handle.truncate()
+    handle.close()
+    if mode == "lost":
+        sys.exit(1)
+    if mode == "invalid":
+        print("not JSON")
+    elif mode == "null":
+        print(json.dumps({"result": None}))
+    elif mode == "error":
+        print(json.dumps({"error": {"code": "fixture", "message": "injected"}}))
+    elif result is not None:
+        result = copy.deepcopy(result)
+        if mode == "type":
+            result["type"] = "wrong_type"
+        if mode in ("id", "wrong-tab", "wrong-workspace", "terminal", "alias"):
+            obj = result.get("root_pane", result.get("pane", result.get("tab", result.get("workspace", {}))))
+            field, value = {"id": ("pane_id", ""), "wrong-tab": ("tab_id", "w1:t9"),
+                            "wrong-workspace": ("workspace_id", "wZ"), "terminal": ("terminal_id", ""),
+                             "alias": ("pane_id", state["original_caller"] if key == "workspace create" else state["caller"])}[mode]
+            obj[field] = value
+        if mode == "wrong-cwd":
+            result.get("root_pane", result.get("pane"))["cwd"] = "/wrong"
+        if mode == "wrong-pane":
+            result["pane"] = copy.deepcopy(state["panes"][state["caller"]])
+        if mode == "terminal-alias":
+            root = state["original_caller"] if key == "workspace create" else state["caller"]
+            result.get("root_pane", result.get("pane"))["terminal_id"] = state["panes"][root]["terminal_id"]
+        if mode == "terminal-space":
+            result.get("root_pane", result.get("pane"))["terminal_id"] = "term bad\n"
+        if mode == "focus-projection":
+            obj = result["panes"][0] if key == "pane list" else result["tab"]
+            obj["focused"] = not obj["focused"]
+        if mode == "duplicate":
+            field = "workspaces" if key == "workspace list" else "panes"
+            result[field].append(copy.deepcopy(result[field][0]))
+        if mode == "list-null":
+            result["workspaces" if key == "workspace list" else "panes"] = None
+        if mode == "missing-caller":
+            result["workspaces"] = [w for w in result["workspaces"] if w["workspace_id"] != state["original_workspace"]]
+        if mode == "workspace-id":
+            result.get("workspace", result.get("workspaces", [{}])[0])["workspace_id"] = "bad"
+        if mode == "active-tab":
+            result.get("workspace", result.get("workspaces", [{}])[0])["active_tab_id"] = "wZ:t1"
+        if mode in ("pane-count", "tab-count", "unfocused"):
+            obj = result.get("workspace", result.get("workspaces", [{}])[0])
+            field, value = {"pane-count": ("pane_count", 99), "tab-count": ("tab_count", 2),
+                            "unfocused": ("focused", False)}[mode]
+            obj[field] = value
+        if mode == "existing-workspace":
+            w, t, p = state["original_workspace"], state["original_tab"], state["original_caller"]
+            result.update(workspace=dict(state["workspaces"][w], focused=True, tab_count=1, pane_count=1),
+                          tab=dict(state["tabs"][t], pane_count=1, focused=True), root_pane=dict(state["panes"][p], focused=True))
+        if mode == "missing-root":
+            del result["root_pane"]
+        if mode == "tab-identity":
+            result["tab"]["tab_id"] = "wZ:t1"
+        if mode == "sibling-terminal":
+            result.get("root_pane", result.get("pane"))["terminal_id"] = state["panes"][f"{state['original_workspace']}:p9"]["terminal_id"]
+        if mode == "geometry":
+            result["layout"]["splits"][0]["ratio"] = 0.7
+        print(json.dumps({"id": "fixture", "result": result}))
+        if mode == "multiple":
+            print(json.dumps({"id": "duplicate", "result": result}))
+    elif mode == "unexpected":
+        print(json.dumps({"result": {"type": "ok"}}))
+    sys.exit(code)
+
+
+def layout():
+    result = {"workspace_id": state["workspace_id"], "tab_id": state["tab"], "zoomed": False,
+              "area": copy.deepcopy(state["area"]),
+              "focused_pane_id": state["focused_panes"][state["tab"]], "panes": [], "splits": []}
+
+    def walk(tree, rect):
+        if isinstance(tree, str):
+            result["panes"].append({"pane_id": tree, "focused": tree == result["focused_pane_id"], "rect": dict(rect)})
+            return
+        result["splits"].append({"id": str(len(result["splits"])), "direction": tree["direction"],
+                                 "ratio": tree["ratio"], "rect": dict(rect)})
+        a, b = dict(rect), dict(rect)
+        dimension, start = ("width", "x") if tree["direction"] == "right" else ("height", "y")
+        # src/layout.rs split_rect: Rust round(), not truncation/bankers rounding.
+        a[dimension] = int(rect[dimension] * tree["ratio"] + 0.5)
+        b[dimension] -= a[dimension]
+        b[start] += a[dimension]
+        walk(tree["first"], a)
+        walk(tree["second"], b)
+
+    walk(state["trees"][state["tab"]], result["area"])
+    # src/ui/panes.rs apply_pane_chrome: only borderless gaps shrink outer rects.
+    if state["gaps"] and not state["borders"]:
+        result["panes"][0]["rect"]["width"] -= int(result["panes"][0]["rect"]["width"] > 1)
+        result["panes"][1]["rect"]["height"] -= int(result["panes"][1]["rect"]["height"] > 1)
+    for patch in json.loads(os.environ.get("HDW_LAYOUT_PATCH", "[]")):
+        path = patch["path"]
+        assert path[0] == "area" or (path[0] in ("panes", "splits") and path[2] == "rect")
+        obj = result
+        for part in path[:-1]:
+            obj = obj[part]
+        obj[path[-1]] = patch["value"]
+    state["layout_reply"] = copy.deepcopy(result)
+    return result
+
+
+def split_tree(tree, target, new, direction):
+    if tree == target:
+        return {"direction": direction, "ratio": 0.5, "first": target, "second": new}
+    if isinstance(tree, dict):
+        return dict(tree, first=split_tree(tree["first"], target, new, direction),
+                    second=split_tree(tree["second"], target, new, direction))
+    return tree
+
+
+def close_tree(tree, target):
+    if isinstance(tree, str):
+        return None if tree == target else tree
+    a, b = close_tree(tree["first"], target), close_tree(tree["second"], target)
+    return dict(tree, first=a, second=b) if a and b else a or b
 
 
 if mode == "exit":
     finish(code=1)
-if key == "workspace close" and os.environ.get("HDW_CLOSE_FAIL") == "1":
-    finish(code=1)
-if key == "status server":
-    state_path.write_text(json.dumps(state))
-    print("status: stopped" if os.environ.get("HDW_COLD") == "1" and not state.get("running") else "status: running")
-    sys.exit(0)
-if args == ["server"]:
-    state["running"] = True
-    finish()
-if not args:
-    finish()
-workspaces = state["workspaces"]
+if mode in ("replace", "replace-empty", "replace-caller", "replace-editor", "foreign-pane", "focus-away",
+            "workspace-focus-away", "extra-tab", "extra-pane"):
+    # Replace between RPCs, before serving a legitimate reply. All public IDs
+    # and manual names can match; a new terminal must not be mistaken for ours.
+    targets = [p for p in state["panes"] if state["panes"][p]["workspace_id"] == state["workspace_id"]]
+    if mode == "replace-caller":
+        targets = [state["caller"]]
+    elif mode == "replace-editor":
+        targets = [f"{state['workspace_id']}:p2"]
+    if mode == "foreign-pane":
+        old = f"{state['workspace_id']}:p2"
+        new = f"{state['workspace_id']}:pY"
+        state["panes"][new] = dict(state["panes"].pop(old), pane_id=new, terminal_id="term_foreign")
+    elif mode == "focus-away":
+        others = [p for p in targets if p != state["caller"] and state["panes"][p]["tab_id"] == state["tab"]]
+        if others:
+            state["focused_panes"][state["tab"]] = others[0]
+        else:
+            state["workspaces"][state["workspace_id"]]["active_tab_id"] = next(
+                t for t in state["tabs"] if t != state["tab"] and state["tabs"][t]["workspace_id"] == state["workspace_id"])
+        focus_workspace(state["workspace_id"])
+    elif mode == "workspace-focus-away":
+        focus_workspace("wZ")
+    elif mode in ("extra-tab", "extra-pane"):
+        w = state["workspace_id"]
+        t = f"{w}:tY" if mode == "extra-tab" else state["tab"]
+        p = f"{w}:pY"
+        state["panes"][p] = dict(state["panes"][state["caller"]], pane_id=p, tab_id=t, terminal_id="term_foreign", focused=False)
+        state["workspaces"][w]["pane_count"] += 1
+        if mode == "extra-tab":
+            state["workspaces"][w]["tab_count"] += 1
+            state["tabs"][t] = dict(state["tabs"][state["tab"]], tab_id=t, pane_count=1, focused=False)
+            state["trees"][t] = p
+            state["focused_panes"][t] = p
+        else:
+            state["tabs"][t]["pane_count"] += 1
+    else:
+        for target in targets:
+            state["panes"][target]["terminal_id"] = "foreign_" + state["panes"][target]["terminal_id"]
+        if mode == "replace-empty":
+            state["workspaces"][state["workspace_id"]]["tokens"] = {}
+    state["replacement"] = copy.deepcopy({k: state[k] for k in ("workspaces", "tabs", "panes", "trees", "focused_panes")})
+    state["runs_at_replacement"] = len(state["runs"])
+    state["writes_at_replacement"] = len(state["writes"])
+
+assert key in {"workspace list", "workspace get", "workspace create", "pane get", "tab get", "pane list",
+               "pane split", "pane close", "pane run", "pane layout"}, args
 if key == "workspace list":
-    finish({"type": "workspace_list", "workspaces": list(workspaces.values())})
-if key == "workspace create":
-    wid = f"w{public_number(state['next'])}"
-    state["next"] += 1
-    tab = {"tab_id": f"{wid}:t1", "workspace_id": wid, "label": "shell"}
-    pane = {"pane_id": f"{wid}:p1", "workspace_id": wid, "tab_id": tab["tab_id"], "focused": True}
-    ws = {"workspace_id": wid, "label": args[args.index("--label") + 1], "focused": False,
-          "tabs": [tab], "panes": [pane], "tokens": {}}
-    workspaces[wid] = ws
-    finish({"type": "workspace_created", "workspace": ws, "tab": tab, "root_pane": pane})
-target = args[2]
-wid = target.split(":")[0]
-assert wid in workspaces, f"unchecked workspace: {target}"
-ws = workspaces[wid]
+    assert args == ["workspace", "list"], args
+    finish({"type": "workspace_list", "workspaces": list(state["workspaces"].values())})
 if key == "workspace get":
-    finish({"type": "workspace_info", "workspace": ws})
-if key == "workspace report-metadata":
-    owner_fields = args[args.index("--token") + 1].split("=", 1)
-    ws["tokens"][owner_fields[0]] = owner_fields[1]
-    finish()
-if key == "workspace focus":
-    ws["focused"] = True
-    finish({"type": "workspace_info", "workspace": ws})
-if key == "workspace rename":
-    ws["label"] = args[3]
-    finish({"type": "workspace_info", "workspace": ws})
-if key == "workspace close":
-    del workspaces[wid]
-    finish({"type": "ok"})
-if key == "tab rename":
-    assert target == ws["tabs"][0]["tab_id"]
-    ws["tabs"][0]["label"] = args[3]
-    finish({"type": "tab_info", "tab": ws["tabs"][0]})
-pane = next(p for p in ws["panes"] if p["pane_id"] == target)
+    assert len(args) == 3, args
+    workspace = state["workspaces"].get(args[2])
+    if workspace is None:
+        finish(code=1)
+    finish({"type": "workspace_info", "workspace": workspace})
+if key == "workspace create":
+    assert args == ["workspace", "create", "--cwd", os.environ["HDW_CWD"], "--focus"], args
+    assert state["counts"].get("workspace list", 0) > len(state["created"]), "creation without inventory"
+    w = f"w{public_number(state['next_workspace'])}"
+    while w in state["workspaces"]:
+        state["next_workspace"] += 1
+        w = f"w{public_number(state['next_workspace'])}"
+    state["next_workspace"] += 1
+    t, p = f"{w}:t1", f"{w}:p1"
+    state["workspaces"][w] = {"workspace_id": w, "number": len(state["workspaces"]) + 1,
+                               "label": "native cwd label", "focused": True, "pane_count": 1,
+                               "tab_count": 1, "active_tab_id": t, "agent_status": "unknown"}
+    state["tabs"][t] = {"workspace_id": w, "tab_id": t, "number": 1, "label": "1", "focused": True,
+                        "pane_count": 1, "agent_status": "unknown"}
+    state["panes"][p] = {"workspace_id": w, "tab_id": t, "pane_id": p, "terminal_id": f"term_root_{w}",
+                         "focused": True, "cwd": args[3], "agent_status": "unknown", "revision": 1}
+    state["trees"][t] = p
+    state["focused_panes"][t] = p
+    focus_workspace(w)
+    state.update(workspace_id=w, tab=t, caller=p, next=2, cwd=args[3], validated=[])
+    state["created"].append(w)
+    state["writes"].append(args)
+    finish({"type": "workspace_created", "workspace": state["workspaces"][w], "tab": state["tabs"][t],
+            "root_pane": state["panes"][p]})
+if key == "pane list":
+    assert args[:3] == ["pane", "list", "--workspace"] and len(args) == 4, args
+    state["validated"] = [p["pane_id"] for p in state["panes"].values() if p["tab_id"] == state["tab"]]
+    finish({"type": "pane_list", "panes": [p for p in state["panes"].values() if p["workspace_id"] == args[3]]})
+if key == "tab get":
+    tab = state["tabs"].get(args[2])
+    if tab is None:
+        finish(code=1)
+    finish({"type": "tab_info", "tab": tab})
+if key == "pane layout":
+    assert args == ["pane", "layout", "--pane", state["caller"]], args
+    finish({"type": "pane_layout", "layout": layout()})
+target = args[2]
+pane = state["panes"].get(target)
+if pane is None:
+    finish(code=1)
 if key == "pane get":
     finish({"type": "pane_info", "pane": pane})
 if key == "pane split":
-    if mode == "foreign":
-        ws["label"] = "foreign"
-        ws["tokens"] = {}
-        finish(code=1)
-    assert args[args.index("--ratio") + 1] == "0.5"
-    assert "--no-focus" in args
-    expected = "right" if len(ws["panes"]) == 1 else "down"
-    assert args[args.index("--direction") + 1] == expected
-    assert target == ws["panes"][-1]["pane_id"]
-    new = dict(pane, pane_id=f"{wid}:p{public_number(len(ws['panes']) + 1)}", focused=False)
-    ws["panes"].append(new)
+    direction = "right" if state["tabs"][state["tab"]]["pane_count"] == 1 else "down"
+    assert state["workspace_id"] in state["created"], "split in original workspace"
+    assert target == (state["caller"] if direction == "right" else f"{state['workspace_id']}:p2"), args
+    assert args == ["pane", "split", target, "--direction", direction, "--ratio", "0.5",
+                    "--cwd", state["cwd"], "--no-focus"], args
+    new_id = f"{state['workspace_id']}:p{public_number(state['next'])}"
+    state["next"] += 1
+    new = {"pane_id": new_id, "terminal_id": f"term_new_{state['workspace_id']}_{state['next']}",
+           "workspace_id": pane["workspace_id"], "tab_id": pane["tab_id"], "focused": False,
+           "cwd": args[args.index("--cwd") + 1], "agent_status": "unknown", "revision": 1}
+    state["panes"][new_id] = new
+    state["tabs"][pane["tab_id"]]["pane_count"] += 1
+    state["workspaces"][pane["workspace_id"]]["pane_count"] += 1
+    state["trees"][pane["tab_id"]] = split_tree(state["trees"][pane["tab_id"]], target, new_id, direction)
+    state["validated"] = []
+    state["writes"].append(args)
     finish({"type": "pane_info", "pane": new})
+if key == "pane close":
+    assert target not in (state["caller"], state["original_caller"]), "root/caller closed"
+    assert pane["workspace_id"] in state["created"], "existing pane closed"
+    assert pane["workspace_id"] == state["workspace_id"], "earlier generated pane closed"
+    assert state["tabs"][pane["tab_id"]]["pane_count"] > 1, "last pane closed"
+    assert pane["terminal_id"].startswith("term_new"), "foreign pane closed"
+    state["trees"][pane["tab_id"]] = close_tree(state["trees"][pane["tab_id"]], target)
+    state["tabs"][pane["tab_id"]]["pane_count"] -= 1
+    state["workspaces"][pane["workspace_id"]]["pane_count"] -= 1
+    del state["panes"][target]
+    state["closed"].append(target)
+    state["writes"].append(args)
+    finish({"type": "ok"})
 if key == "pane run":
-    assert len(ws["panes"]) == 3, "input sent before full layout"
-    state.setdefault("runs", []).append(args)
+    required = {p["pane_id"] for p in state["panes"].values() if p["tab_id"] == state["tab"]}
+    assert len(required) == 3 and set(state["validated"]) == required, "input before full validation"
+    assert target in required, "input outside the validated new tab"
+    assert len(args) == 4, args
+    state["runs"].append(args)
+    state["writes"].append(args)
     finish()
-raise AssertionError(f"unsupported fixture call: {args}")

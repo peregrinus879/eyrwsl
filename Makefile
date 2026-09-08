@@ -6,7 +6,7 @@
 # a real directory and only leaf files are links.
 
 SHELL := /bin/bash
-PACKAGES := bash btop editorconfig fastfetch git mise nvim starship tmux yazi
+PACKAGES := bash btop editorconfig fastfetch git mise nvim starship yazi
 STOW := stow --no-folding -t ~
 
 # Twin files are byte-identical with EyrArcHy and synced manually. When the
@@ -23,13 +23,11 @@ override export PEER_COMMIT := $(value PEER_COMMIT)
 TWIN_SPECS := nvim/.config/nvim/lua/plugins/obsidian.lua \
   nvim/.config/nvim/lua/plugins/render-markdown.lua \
   nvim/.config/nvim/lua/plugins/git-review.lua \
-  bash/.config/bash/functions/tdw \
   bash/.config/bash/functions/hdw \
   yazi/.config/yazi/yazi.toml \
   scripts/update-references.sh \
   tests/update-references.sh \
   tests/git-review.sh \
-  tests/tdw.sh \
   tests/hdw.sh \
   tests/fixtures/herdr
 
@@ -50,7 +48,7 @@ help:
 	@echo "  twins-pair  Read-only committed twin check: full SELF_COMMIT and PEER_COMMIT, with the peer objects at SIBLING"
 	@echo "  verify    lint, check, and twins, then the WSL host, command baseline, mise tools, deployment, identity, and config checks"
 	@echo "  test      Run the fixture suites in fake homes"
-	@echo "  clean     Guarded stow preparation: leftover folds and dangling clone links only (scripts/prepare-stow.sh)"
+	@echo "  clean     Guarded stow preparation: owned folds, dangling and exact retired links (scripts/prepare-stow.sh)"
 	@echo "  refs      Clone and fast-forward listed references to exact upstream parity; report and keep stale clones"
 	@echo "  wt-diff   Diff tracked Windows Terminal settings against the deployed file"
 	@echo "  wt-push   Back up changed settings and deploy the tracked Windows Terminal file"
