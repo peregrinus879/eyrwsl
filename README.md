@@ -16,7 +16,7 @@ Omarchy + personal deviations   → EyrArcHy
 Omarchy + WSL deviations        → EyrWSL
 ```
 
-- [`eyragents`](https://github.com/peregrinus879/eyragents) - AI agent harness: Claude Code, Codex, and OpenCode settings, shared guidance, and commit workflow
+- [`eyragents`](https://github.com/peregrinus879/eyragents) - AI agent harness: Claude Code, Codex, OpenCode, and Hermes Agent settings, shared guidance, and commit workflow
 - [`eyrarchy`](https://github.com/peregrinus879/eyrarchy) - Personal Omarchy customizations: Bash overrides, Hyprland bindings, Neovim plugins, and Yazi
 - [`eyrwsl`](https://github.com/peregrinus879/eyrwsl) - Self-contained WSL Arch environment: terminal baseline plus Windows Terminal and clipboard integration
 
@@ -27,7 +27,7 @@ Local clones live side by side under `~/Projects/eyrie/`.
 - **Shell**: [Bash](https://www.gnu.org/software/bash/)
 - **Prompt**: [Starship](https://github.com/starship/starship)
 - **Terminal Workspaces**: [Herdr](https://github.com/herdrdev/herdr)
-- **AI Tools**: [Claude Code](https://code.claude.com/docs), [Codex](https://github.com/openai/codex), and [OpenCode](https://github.com/anomalyco/opencode), installed and updated through [mise](https://mise.jdx.dev/)
+- **AI Tools**: [Claude Code](https://code.claude.com/docs), [Codex](https://github.com/openai/codex), [OpenCode](https://github.com/anomalyco/opencode), and [Hermes Agent](https://hermes-agent.nousresearch.com/docs/), installed and updated through [mise](https://mise.jdx.dev/)
 - **Editor**: [Neovim](https://github.com/neovim/neovim) ([LazyVim](https://github.com/LazyVim/LazyVim))
 - **Version Control**: [Git](https://git-scm.com/), [GitHub CLI](https://cli.github.com/), [LazyGit](https://github.com/jesseduffield/lazygit)
 - **File Manager**: [Yazi](https://github.com/sxyazi/yazi), [eza](https://github.com/eza-community/eza), [zoxide](https://github.com/ajeetdsouza/zoxide)
@@ -61,7 +61,7 @@ Key ownership rules:
 - `nvim/` includes the vault plugin specs (`obsidian.lua`, `render-markdown.lua`); the vault is expected at `~/Projects/vault` (override with `OBSIDIAN_VAULT`)
 - `nvim/` also carries `git-review.lua`, the contextual Snacks diff/status mappings shared with EyrArcHy
 - Bash supports additive machine overlays through `~/.config/bash-overlays/*`; the directory is optional and reserved for untracked machine-local additions
-- `mise/` owns the `~/.local/bin` wrappers for Claude Code, Codex, and OpenCode, the files `omarchy-mise-install` writes on Omarchy minus its release-cooldown override, and the `~/.config/mise/conf.d/eyrwsl.toml` fragment that turns on mise's paranoid mode; each wrapper installs its tool through mise on first run, and mise's other files (`~/.config/mise/config.toml`, `~/.local/share/mise`) are host state the wrappers create
+- `mise/` owns the `~/.local/bin` wrappers for Claude Code, Codex, OpenCode, and Hermes Agent, the ordinary Omarchy wrapper form for the first three and a specialised uv/Python Hermes wrapper, retaining the release cooldown, and the `~/.config/mise/conf.d/eyrwsl.toml` fragment that turns on mise's paranoid mode; each wrapper installs its tool through mise on first run, and mise's other files (`~/.config/mise/config.toml`, `~/.local/share/mise`) are host state the wrappers create
 - The AI tools load applicable EyrAgents settings; Omarchy's AI launch aliases are not carried. `hdw` sends full commands, not shell aliases or an isolated harness profile
 - Native Herdr binary/configuration/keymap remain; open it with `herdr`, then use `hdw` for a new workspace. EyrWSL carries no `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or local tmux recipes
 - Interactive Bash exports `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` and `OPENCODE_ENABLE_EXA=1`, so OpenCode skips the Claude Code skill copies and reads `.agents/skills` natively; EyrAgents owns OpenCode runtime configuration
@@ -286,7 +286,7 @@ sudo pacman -Syu --needed 7zip bash-completion bat btop curl diffutils eza fastf
 
 All 42 packages in this command come from official Arch repositories; their normal dependencies are installed automatically. `--needed` skips already-current packages, while `-Syu` completes a full system upgrade. Read Pacman's transaction and any provider/replacement prompts before accepting. [Partial upgrades are unsupported](https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported): do not replace this with `pacman -Sy` followed by selective installs.
 
-The baseline stays terminal-only: `inetutils` supplies `hostname`, `lua` supplies the Lua syntax verifier, `tree-sitter-cli` supports LazyVim, `python` supports repository checks and user-owned vault scripts, `man-db`/`man-pages` supply local documentation, and 7-Zip supports Yazi archives. No desktop `xdg-utils`, Linux font package, AUR package/helper, or Node runtime is added here. **Node.js is a separate prerequisite for optional EyrAgents**, not for these prebuilt AI tool binaries.
+The baseline stays terminal-only: `inetutils` supplies `hostname`, `lua` supplies the Lua syntax verifier, `tree-sitter-cli` supports LazyVim, `python` supports repository checks and user-owned vault scripts, `man-db`/`man-pages` supply local documentation, and 7-Zip supports Yazi archives. No desktop `xdg-utils`, Linux font package, AUR package/helper, or Node runtime is added here. **Node.js is a separate prerequisite for optional EyrAgents**, not for the three prebuilt AI binaries. Hermes uses private Python; its modern TUI additionally requires Node.
 
 Verify the package list in **Arch Bash, normal Linux user**. Success prints nothing and returns to the prompt; every printed package name is an unmet dependency to resolve:
 
@@ -321,7 +321,7 @@ curl -fsSL https://herdr.dev/install.sh | sh
 
 Expect installation under `~/.local/bin/herdr`. A warning that this directory is not yet on `PATH` is expected before EyrWSL is stowed; the fresh-shell check below confirms it later. Package ownership remains Pacman-first: recheck before a future standalone reinstall, and review any ownership migration rather than installing one copy over another.
 
-Claude Code, Codex, and OpenCode are installed later by EyrWSL's mise wrappers. **Fresh installs should not also install their Pacman/native/npm versions.** Existing installations use the [migration guidance](#existing-installations), not blanket removal commands. Authentication and subscriptions are separate from binary installation.
+Claude Code, Codex, OpenCode, and Hermes Agent are installed later by EyrWSL's mise wrappers. **Fresh installs should not also install their Pacman/native/npm versions.** Existing installations use the [migration guidance](#existing-installations), not blanket removal commands. Authentication and subscriptions are separate from binary installation.
 
 ### 5. Clone
 
@@ -448,6 +448,7 @@ cd ~
 ~/.local/bin/claude --version
 ~/.local/bin/codex --version
 ~/.local/bin/opencode --version
+~/.local/bin/hermes --version
 ```
 
 Expect a download on first use followed by each tool's version. The wrappers run `mise use -g`, install under `~/.local/share/mise`, and record the tool's `latest` selection in host-local `~/.config/mise/config.toml`. Do not run them with `sudo` or place that generated config in a Stow package. They keep mise's default 24-hour release cooldown; `mup` (`mise up`) keeps it too.
@@ -455,15 +456,15 @@ Expect a download on first use followed by each tool's version. The wrappers run
 In a **fresh Arch Bash, normal Linux user**, check installation and resolution:
 
 ```bash
-mise ls claude codex opencode
-command -v claude codex opencode
+mise ls claude codex opencode pipx:hermes-agent uv
+command -v claude codex opencode hermes
 ```
 
-**Checkpoint:** mise lists an installed version of all three tools, and each command resolves under `~/.local/share/mise` or to its `~/.local/bin` wrapper, not an old Pacman/native/Windows install. Full EyrWSL verification requires these binaries even if you skip the optional EyrAgents harness; sign-in is needed only when using each provider.
+**Checkpoint:** mise lists an installed version of all four tools, and each command resolves under `~/.local/share/mise` or to its `~/.local/bin` wrapper, not an old Pacman/native/Windows install. Full EyrWSL verification requires these binaries even if you skip the optional EyrAgents harness; sign-in is needed only when using each provider.
 
 ### 10. Optional EyrAgents
 
-Skip this step for an EyrWSL-only installation. It is recommended for the shared Claude Code, Codex, and OpenCode policies and workflows, but EyrWSL does not deploy it for you. Review [EyrAgents' README](https://github.com/peregrinus879/eyragents#setup) and its local `AGENTS.md`/maintenance ledger before adopting its personal guidance and permissions. No EyrArcHy deployment belongs here.
+Skip this step for an EyrWSL-only installation. It is recommended for the shared Claude Code, Codex, OpenCode, and Hermes Agent policies and workflows, but EyrWSL does not deploy it for you. Review [EyrAgents' README](https://github.com/peregrinus879/eyragents#setup) and its local `AGENTS.md`/maintenance ledger before adopting its personal guidance and permissions. No EyrArcHy deployment belongs here.
 
 Before optional harness deployment, check the daily account in **Arch Bash, normal Linux user**:
 
@@ -601,7 +602,7 @@ git pull --ff-only
 This updates live Stow sources immediately, even before restowing. A fast-forward refusal needs review, not a forced reset. Recheck the updated README and ledger, install any missing baseline packages using step 4's full-upgrade command, then inspect existing AI launchers in **Arch Bash, normal Linux user**:
 
 ```bash
-type -a claude codex opencode
+type -a claude codex opencode hermes
 pacman -Q openai-codex opencode
 ```
 
@@ -634,11 +635,16 @@ Unstow removes this repository's links, not the clone or your generated host dat
 
 ## Native Herdr
 
-Open Herdr independently by running `herdr` in a normal-user Arch shell. In a shell inside that session, navigate to the desired directory, then run `hdw <cc|cx|oc> [-c]` to create and focus a new workspace:
+Hermes's stowed wrapper installs mise-managed uv first, then `pipx:hermes-agent` with `extras=all` and persistent `uvx_args`/`pipx_args` selecting Python 3.13. It follows Omarchy's PyPI channel, currently Hermes 0.19.0, while retaining EyrWSL's release cooldown. Later `mup` runs preserve the interpreter options even when shell activation bypasses the wrapper. No global Python is installed for Hermes. An existing wrong-Python environment refuses rather than being force-reinstalled. `make verify` checks ownership, the interpreter and persisted options without installing or launching Hermes. Complete `hermes model` interactively for authentication; use `mup` rather than Hermes's Git-checkout updater. The native TUI's Node dependency is optional; bare `hermes` honors the user's interface choice.
+
+Open Herdr independently by running `herdr` in a normal-user Arch shell. In a shell inside that session, navigate to the desired directory, then run `hdw <cc|cx|oc|ha> [-c]` to create and focus a new workspace:
 
 - `cc` sends `claude`; `-c` uses `claude -c`.
 - `cx` sends `codex`; `-c` uses `codex resume --last`.
 - `oc` sends `opencode`; `-c` uses `opencode -c`.
+- `ha` sends `hermes`; `-c` uses `hermes -c`.
+
+Hermes continuation may restore its recorded cwd after launch. EyrAgents owns the Hermes configuration; `hdw` supplies no YOLO flag or separate profile.
 
 `hdw` uses the current physical directory, not an inferred Git root. AI occupies the full-height left column, Neovim the top-right and a shell the bottom-right, with equal columns, equally stacked right panes and AI focus. The caller may be in a populated tab or an inactive workspace, but its pane identity and selected-tab context must be valid. Every call creates a separate workspace, even in the same directory; change directory in a generated bottom-right shell and call again to open the next workspace. Bare `hdw` prints usage; outside-Herdr or invalid-context calls refuse.
 
@@ -646,7 +652,7 @@ Existing workspace/tab names and layouts stay intact, apart from normal global w
 
 Cooperating calls are serialized. Caller identity, the pre-creation workspace inventory, the new root's opaque terminal identity, exact membership and complete geometry are checked before tool input. Cleanup may close only proven new split panes before input, never any workspace, tab, root or original caller. A newly created workspace/root always remains for inspection on failure; possible input or uncertain ownership preserves remaining state. Inspect the reported original/new recovery context before manual action. This is not an atomic multi-RPC transaction.
 
-The `cc`/`cx`/`oc` selectors are arguments, not shell aliases. `hdw` sends full commands and still loads applicable EyrAgents settings; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
+The `cc`/`cx`/`oc`/`ha` selectors are arguments, not shell aliases. `hdw` sends full commands and still loads applicable EyrAgents settings; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
 
 ## Git Review
 
@@ -663,7 +669,7 @@ The rsync fixture uses fake local monitor/transfer commands, not SSH or producti
 After stowing or changing owned packages:
 
 - Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures). GitHub Actions runs them on pushes to `main` and pull requests, plus an exact committed twin-pair check against EyrArcHy's fetched default branch.
-- Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: the active WSL2/interop host guard first, then `lint`, `check`, and `twins`, followed by `scripts/verify.sh` in `full` mode (command baseline, the three AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
+- Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: the active WSL2/interop host guard first, then `lint`, `check`, and `twins`, followed by `scripts/verify.sh` in `full` mode (command baseline, the four AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
 
 Complete these manual fresh-session checks:
 
@@ -675,7 +681,7 @@ Complete these manual fresh-session checks:
 - On helper failure, inspect the original/new pane/tab/workspace context before manual cleanup. The new workspace/root must remain; only verified new split panes may be removed before possible input, never any workspace/tab/root/caller. Preserve uncertain state and older roots/recovery files. These multi-call operations are not server-side atomic transactions.
 - In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
 - With disposable local source/destination directories, start `rsw <source> <destination>`, note its PID/log path, and confirm changes during a transfer eventually arrive. Readiness is not sync success: inspect logs for transfer/monitor failures and retries. Reconciliation is checked between transfers, 60 seconds after the last successful completion. Monitor death stops the watcher after the current transfer returns and requires inspection/restart; a stalled transfer can delay this indefinitely. `lsw` and `dsw` manage only watchers started by this implementation; do not assume an older watcher stopped. No `--delete` is used, so destination-only files remain.
-- Confirm `mise ls claude codex opencode` lists an installed version of each tool, and `command -v claude codex opencode` resolves every one under `~/.local/share/mise` (interactive shells, through `mise activate`) or to its `~/.local/bin` wrapper; `make verify` fails when a tool is missing from mise or resolves elsewhere.
+- Confirm `mise ls claude codex opencode pipx:hermes-agent uv` lists an installed version of each tool, and `command -v claude codex opencode hermes` resolves every one under `~/.local/share/mise` (interactive shells, through `mise activate`) or to its `~/.local/bin` wrapper; `make verify` fails when a tool is missing from mise or resolves elsewhere.
 - Confirm `mise settings get paranoid` prints `true` and `mise settings get minimum_release_age` reports that the setting is not set, so the 24-hour default applies; `make verify` checks paranoid mode in full mode.
 - Run `nvim` once and confirm plugins install successfully and Gruvbox loads.
 - Check Git review from files in two repositories and from a selected Neo-tree repository folder while the editor was launched in their non-Git parent; `Space g d` and `Space g s` must target the selection without changing `:pwd`.
@@ -742,7 +748,7 @@ Save work before terminating Arch from normal-user PowerShell using the step 2 c
 
 - **mise refuses a project config:** in normal-user Arch Bash, review that project's config, then run `mise trust` from the project only if you accept it. Paranoid mode prompts again when a trusted file changes. Do not disable it or trust a whole directory tree to fix one refusal.
 - **First-run wrapper fails or appears stalled:** downloads require working network access and a release eligible under the cooldown. In normal-user Arch Bash from `~`, use `mise doctor` for activation problems or `mise use -g claude` for Claude's direct installation error; substitute `codex` or `opencode` for the other tools. This latter command installs/updates host state, it is not a read-only diagnostic. Do not add `sudo`, bypass cooldowns, or reinstall with a different package manager.
-- **Wrong binary starts:** in a fresh normal-user Arch Bash, use `type -a claude codex opencode` and `mise ls claude codex opencode`. Follow the ownership checks under [Existing Installations](#existing-installations); do not erase provider configuration or auth to replace a launcher.
+- **Wrong binary starts:** in a fresh normal-user Arch Bash, use `type -a claude codex opencode hermes` and `mise ls claude codex opencode pipx:hermes-agent uv`. Follow the ownership checks under [Existing Installations](#existing-installations); do not erase provider configuration or auth to replace a launcher.
 - **Sign-in cannot open a browser:** open the tool's displayed URL in Windows yourself. Use only the tool's official flow and keep codes/tokens private. Account access and an expired session are provider issues, not reasons to delete dotfiles.
 - **OpenCode colors differ:** select `system` with OpenCode's `/theme`. If using EyrAgents, its `~/.config/opencode/tui.json` should resolve into that clone. Restart OpenCode after changing its configuration; EyrWSL does not own an OpenCode theme file.
 
@@ -791,7 +797,7 @@ CI runs `make lint`, `make check`, and `twins-pair` on pushes to `main` and pull
 
 CI uses the official `archlinux:base` container with a full signed-package upgrade, matching the Arch userspace of both supported hosts. `ubuntu-latest` supplies only GitHub's VM. Checks run as an unprivileged `ci` user with explicit Bash, a private temporary directory and container process reaping; checkout credentials are not persisted. CI does not perform or attest deployment to Omarchy or WSL.
 
-Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code, Codex, and OpenCode current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
+Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code, Codex, OpenCode, and Hermes Agent current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
 
 `nvim/.config/nvim/lazy-lock.json` is generated but tracked. Update it only through an intentional Lazy sync, review the pinned revision changes, verify a clean headless bootstrap, and commit the lockfile with the plugin-spec change that required it.
 

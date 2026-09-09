@@ -1,18 +1,18 @@
 # Create and focus a new native Herdr workspace, without changing existing layouts.
 # AI full-height left 50%; editor and shell equally stacked right; AI focused.
-# Usage: hdw <cc|cx|oc> [-c]. Native Herdr owns workspace/tab navigation.
+# Usage: hdw <cc|cx|oc|ha> [-c]. Native Herdr owns workspace/tab navigation.
 hdw() (
   local agent="" continue_flag=0 arg binary command cwd state_dir
   for arg in "$@"; do
     case "$arg" in
-      cc | cx | oc)
-        [[ -z $agent ]] || { echo 'hdw: choose one agent, cc, cx, or oc' >&2; return 1; }
+      cc | cx | oc | ha)
+        [[ -z $agent ]] || { echo 'hdw: choose one agent, cc, cx, oc, or ha' >&2; return 1; }
         agent=$arg ;;
       -c) continue_flag=1 ;;
-      *) echo 'Usage: hdw <cc|cx|oc> [-c]' >&2; return 1 ;;
+      *) echo 'Usage: hdw <cc|cx|oc|ha> [-c]' >&2; return 1 ;;
     esac
   done
-  [[ -n $agent ]] || { echo 'Usage: hdw <cc|cx|oc> [-c]' >&2; return 1; }
+  [[ -n $agent ]] || { echo 'Usage: hdw <cc|cx|oc|ha> [-c]' >&2; return 1; }
   local ws_id=${HERDR_WORKSPACE_ID:-} tab_id=${HERDR_TAB_ID:-} caller=${HERDR_PANE_ID:-}
   [[ $ws_id =~ ^w[0-9A-HJKMNP-TV-Z]+$ && $tab_id =~ ^${ws_id}:t[0-9A-HJKMNP-TV-Z]+$ &&
     $caller =~ ^${ws_id}:p[0-9A-HJKMNP-TV-Z]+$ ]] || {
@@ -24,6 +24,7 @@ hdw() (
     cc) binary=claude; command=claude; ((continue_flag == 0)) || command='claude -c' ;;
     cx) binary=codex; command=codex; ((continue_flag == 0)) || command='codex resume --last' ;;
     oc) binary=opencode; command=opencode; ((continue_flag == 0)) || command='opencode -c' ;;
+    ha) binary=hermes; command=hermes; ((continue_flag == 0)) || command='hermes -c' ;;
   esac
   type -P "$binary" >/dev/null || { echo "hdw: required agent '$binary' is not installed" >&2; return 1; }
   # The sentinel preserves trailing newlines so unsupported paths cannot be truncated.

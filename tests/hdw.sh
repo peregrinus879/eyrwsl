@@ -16,6 +16,7 @@ printf '#!/bin/bash\nexit 99\n' >"$TMP/bin/claude"
 chmod +x "$TMP/bin/claude"
 ln -s claude "$TMP/bin/codex"
 ln -s claude "$TMP/bin/opencode"
+ln -s claude "$TMP/bin/hermes"
 ln -s "$HDW_CWD" "$TMP/logical"
 export PATH="$TMP/bin:$PATH"
 herdr() { python3 "$ROOT/tests/fixtures/herdr" "$@"; }
@@ -163,7 +164,7 @@ mkdir -p "$TMP/other project"
 preserved
 assert '.panes["w1:p1"].cwd != .panes["w2:p1"].cwd and
   ([.panes[] | select(.workspace_id == "w2") | .cwd] | unique | length) == 1' 'caller cwd overrode physical cwd'
-for agent in cc cx oc; do
+for agent in cc cx oc ha; do
   for continuation in plain continue; do
     reset_fake
     args=("$agent")
@@ -172,6 +173,7 @@ for agent in cc cx oc; do
       cc:plain) expected=claude ;; cc:continue) expected='claude -c' ;;
       cx:plain) expected=codex ;; cx:continue) expected='codex resume --last' ;;
       oc:plain) expected=opencode ;; oc:continue) expected='opencode -c' ;;
+      ha:plain) expected=hermes ;; ha:continue) expected='hermes -c' ;;
     esac
     launch "${args[@]}" || fail "$agent $continuation"
     jq -e --arg command "$expected" '.runs[1][3] == $command' "$HDW_FIXTURE_STATE" >/dev/null || fail 'agent command changed'
@@ -181,6 +183,9 @@ done
 reset_fake
 (unset EDITOR; launch -c cc) || fail 'default editor/flag order'
 assert '.runs[0][3] == "nvim ." and .runs[1][3] == "claude -c"' 'default editor/flag order'
+reset_fake
+launch -c ha || fail 'Hermes continue flag order'
+assert '.runs[1][3] == "hermes -c"' 'Hermes continue command'
 
 # Outer rectangles include borders, but borderless gaps remove one trailing
 # cell only when the first-child dimension exceeds one. Odd halves round up.
@@ -227,7 +232,7 @@ for patch in \
 done
 [[ $geometry_negative == 166 && $geometry_positive == 20 ]] || fail 'geometry coverage changed'
 
-for args in '' '-c' 'cc oc' 'nope' 'cc --help'; do
+for args in '' '-c' 'cc oc' 'ha cc' 'nope' 'cc --help'; do
   reset_fake
   # shellcheck disable=SC2086 # Deliberate invalid argument vectors.
   refuse $args
@@ -248,7 +253,7 @@ for ids in 'w2 w2:t7 w2:p1' 'w1 w1:t9 w1:p1' 'w1 w1:t7 w1:p9'; do
   HERDR_WORKSPACE_ID=$w HERDR_TAB_ID=$t HERDR_PANE_ID=$p refuse cc
   no_writes
 done
-for agent in cc cx oc; do
+for agent in cc cx oc ha; do
   reset_fake
   PATH="$TMP/empty-bin" refuse "$agent"
   grep -q 'required agent' "$TMP/error" || fail 'missing binary not explained'

@@ -1,0 +1,15 @@
+#!/bin/bash
+# Hermes needs a private Python 3.13 environment. Persist the interpreter
+# options with the mise tool so ordinary `mise up` also uses them, even when
+# shell activation resolves straight to the installed Hermes executable.
+# uv is provisioned first; no global Python, force reinstall or cooldown override.
+set -euo pipefail
+mise use -g --quiet --fuzzy uv
+mise use -g --quiet --fuzzy 'pipx:hermes-agent[extras=all,uvx_args="--python 3.13",pipx_args="--python 3.13"]'
+root=$(mise where 'pipx:hermes-agent[extras=all]')
+if [[ ! -x $root/hermes-agent/bin/python ]] ||
+  ! "$root/hermes-agent/bin/python" -I -S -B -c 'import sys; raise SystemExit(sys.version_info[:2] != (3, 13))'; then
+  printf 'Hermes: existing environment is not Python 3.13; inspect it before a separately approved repair.\n' >&2
+  exit 1
+fi
+exec mise x 'pipx:hermes-agent[extras=all]' -- hermes "$@"
