@@ -42,14 +42,14 @@ Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Referenc
 8. Check `git log --format="%h %ad %s" --date=short -- <file>` on the relevant reference repo when you need to determine when a difference was introduced
 9. Cross-check differences against `DEVIATIONS.md`. If a difference is not documented there, treat it as a likely upstream change that needs review
 10. Apply new upstream additions and changes where they belong in this repo
-11. Update `README.md`, `AGENTS.md`, `DEVIATIONS.md`, and `docs/maintenance.md` when ownership, setup, workflow, or durable maintenance findings change
+11. Update each affected documentation owner: README overview, AGENTS invariants, DEVIATIONS rationale, `docs/setup.md` procedures, and `docs/operations.md` usage/verification. Keep only unresolved work and revalidation evidence in `docs/maintenance.md`
 12. Summarize which changes were adopted, rejected, or intentionally kept different
 
 ## Completion Checks
 
 - Check Hermes separately against Omarchy's `omarchy-install-hermes-cli` and current mise pipx backend documentation. Its uv-first wrapper persists Python 3.13 options for subsequent `mise up`; keep WSL cooldown/paranoid mode and reject wrong-interpreter/foreign launcher state without forced repair. Do not copy Desktop takeover/removal logic. `ha` maps to `hermes` or `hermes -c`, with continuation's native cwd behavior documented.
 
-- `README.md`, `AGENTS.md`, and `DEVIATIONS.md` reflect any ownership, setup, or workflow changes
+- The overview, invariants, deviations, and affected setup/operation guides reflect the change without duplicating detailed procedures
 - `make refs` passed in this run; Omarchy release comparisons still use tag `v4.0.0`
 - Every retained difference is still documented in `DEVIATIONS.md`
 - For twin changes, `make twins` checks local worktrees; after both commits exist, `twins-pair` checks the exact full `SELF_COMMIT`/`PEER_COMMIT` pair at `SIBLING`. Inputs remain literal data and peer code never executes. Hosted final-pair evidence must name the final published commits; earlier-peer CI is not a substitute or publication authorization

@@ -172,7 +172,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 ### WSL Bootstrap
 
 - `/etc/wsl.conf` carries the default user and keeps Windows interop enabled, which the clipboard integration requires.
-- The README separates Windows/PowerShell, Arch root bootstrap, and normal-user setup. It documents current stable WSL, official Arch `wsl --install archlinux` with a verified official-image fallback, Windows Terminal and Nerd Font installation, preserved `/etc/wsl.conf` sections, UTF-8 locale, no-reply Git identity, preview-first Stow, and preservation-first upgrades. Optional EyrAgents remains a separate deployment; live installation assumptions stay pending in the host-pass ledger.
+- The [setup guide](docs/setup.md) separates Windows/PowerShell, Arch root bootstrap, and normal-user setup. It covers stable WSL, official Arch installation and checksum-checked image fallback, Windows Terminal and fonts, preserved host settings, locale, no-reply identity, and preservation-first deployment/upgrades. [Operations](docs/operations.md) owns usage and verification; the README remains the overview. Optional EyrAgents is a separate deployment, and actual-host evidence stays pending in the maintenance ledger.
 - The WSL baseline includes `inetutils` for the `hostname` host gate, `lua` for EyrWSL's fail-closed syntax verification, `tree-sitter-cli` for LazyVim, and `man-db`/`man-pages` for local documentation. The official `mise` package installs and updates the AI terminal tools through the stowed wrappers.
 - Yazi media helpers are optional official packages, not hidden baseline dependencies.
 

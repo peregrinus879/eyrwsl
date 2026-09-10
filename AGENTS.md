@@ -5,7 +5,7 @@ Self-contained Arch WSL dotfiles adapted from [Omarchy](https://github.com/omaco
 ## Load Map
 
 - Claude Code loads this file through the root `CLAUDE.md` `@AGENTS.md` import; skills load on invocation only.
-- The `Makefile` is the single source of the package list (`scripts/verify.sh` and `scripts/prepare-stow.sh` consume it); `references.txt` lists the reference clones `/omasync` needs, and the family union of those files owns `~/Projects/quarry`; `README.md` carries the human-facing setup, verification, and maintenance detail; script headers own local constraints.
+- The `Makefile` is the single source of the package list (`scripts/verify.sh` and `scripts/prepare-stow.sh` consume it); `references.txt` lists the reference clones `/omasync` needs, and the family union of those files owns `~/Projects/quarry`. `README.md` is the overview; `docs/setup.md` owns installation/recovery and `docs/operations.md` owns usage, verification, and routine maintenance. `DEVIATIONS.md` owns architectural boundaries and intentional differences; script headers own local constraints. Link to each owner rather than repeating its procedures in the README.
 - `docs/maintenance.md` owns unresolved decisions, deferred work, active limitations, and dated revalidation evidence; read it before package, WSL, or Windows Terminal changes, `/omasync`, or deferred work. Prose describes current behavior; Git history owns provenance.
 - EyrAgents' canonical [Workstream Checkpoints](https://github.com/peregrinus879/eyragents/blob/main/agents/.agents/shared-guidance.md#workstream-checkpoints) rule owns local continuity. The primary keeps a lean ignored `.eyr-plans/<workstream>/checkpoint.md`, separate in-tool `audit/` and cross-vendor `spar/` artifacts, and removes each when no longer needed. Read current state on resume, compaction and session handoff; review agents remain read-only. Tracked `docs/handoff.md` carries concrete cross-host work through push/pull and is deleted or updated when that handoff is complete. Neither form transfers approval; no extra skill or completed archive is needed.
 
@@ -32,14 +32,14 @@ Self-contained Arch WSL dotfiles adapted from [Omarchy](https://github.com/omaco
 - Neovim's WSL clipboard provider requires `powershell.exe`, not `clip.exe`, and uses argv arrays with explicit UTF-8 input/output, `-NoProfile`, and terminating-error behavior. Copy/paste cover both `+` and `*`; empty/null and CR handling must be verified on the actual Windows boundary, not inferred from mocks.
 - Packages come from official Arch repos, `mise` included. Claude Code, Codex, OpenCode, and Hermes Agent are installed and updated through mise by the wrappers the `mise` package stows into `~/.local/bin`, the ordinary `omarchy-mise-install` form for the first three and a specialised Hermes wrapper; `~/.config/mise/config.toml` and `~/.local/share/mise` are host state those wrappers create, never package sources. The same package stows `~/.config/mise/conf.d/eyrwsl.toml`, which turns on mise's paranoid mode, and the wrappers and `mup` keep mise's default release cooldown, unlike Omarchy's. Herdr uses its canonical installer while no official package exists. No AUR packages or helper.
 - `windows-terminal/settings.json` is a full paste-ready config, never stowed; deploy it explicitly with `make wt-push`.
-- Keep every intentional difference documented in `DEVIATIONS.md`; update `README.md`, `AGENTS.md`, and `DEVIATIONS.md` together when ownership, setup, or sync assumptions change.
+- Keep every intentional difference documented in `DEVIATIONS.md`; update the overview, agent invariants, and affected setup/operation guides together when ownership, setup, or sync assumptions change.
 
 ## Post-Change Verification
 
 - Hermes's specialised mise wrapper installs uv first and persists Python 3.13 installer arguments with `pipx:hermes-agent[extras=all]`, preserving them across `mup`. Its runtime is Python-based, unlike the other three prebuilt AI binaries. `scripts/verify-hermes.sh` checks interpreter, installation/resolution ownership and host tool options without installing anything. EyrAgents owns Hermes settings, plugin, shared guidance and learning policy; `ha` is only the `hdw` selector. No Hermes Desktop runtime is managed here.
 
 - Run `make wt-diff` before and after changing or deploying `windows-terminal/settings.json`.
-- The full human checklist lives in `README.md` (Verify and Maintenance).
+- The human verification checklist and routine maintenance commands live in `docs/operations.md`; deployment and recovery live in `docs/setup.md`.
 
 ## Skills
 
