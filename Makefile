@@ -29,9 +29,13 @@ TWIN_SPECS := nvim/.config/nvim/lua/plugins/obsidian.lua \
   tests/update-references.sh \
   tests/git-review.sh \
   tests/hdw.sh \
-  tests/fixtures/herdr
+  tests/fixtures/herdr \
+  docs/cheatsheet/build.py \
+  docs/cheatsheet/reference.json \
+  docs/cheatsheet/template.html \
+  docs/cheatsheet/README.md
 
-.PHONY: help require-host require-clone stow unstow dry-run restow lint check twins twins-pair verify test clean refs wt-diff wt-push
+.PHONY: help require-host require-clone stow unstow dry-run restow lint check twins twins-pair verify test clean refs wt-diff wt-push cheatsheet
 
 # Deployment goals and their guards must never race, including `make -j clean restow`.
 .NOTPARALLEL:
@@ -52,6 +56,7 @@ help:
 	@echo "  refs      Clone and fast-forward listed references to exact upstream parity; report and keep stale clones"
 	@echo "  wt-diff   Diff tracked Windows Terminal settings against the deployed file"
 	@echo "  wt-push   Back up changed settings and deploy the tracked Windows Terminal file"
+	@echo "  cheatsheet  Rebuild the offline hdw workflow guide in docs/hdw.html"
 
 # Host-bound targets refuse elsewhere, and a managed endpoint that is a link
 # must resolve into this clone so a reference clone never redeploys the
@@ -83,6 +88,7 @@ lint:
 # Repository-only checks: every owned config validates in repo mode, then the
 # fixture suites run in fake homes. Needs no WSL host or stowed links.
 check:
+	python3 docs/cheatsheet/build.py --profile eyrwsl --check
 	@VERIFY_MODE=repo VERIFY_PACKAGES='$(PACKAGES)' bash scripts/verify.sh
 	@$(MAKE) --no-print-directory test
 	@echo "ok:   check"
@@ -143,3 +149,6 @@ wt-diff:
 
 wt-push: require-clone
 	scripts/wt-diff.sh --push
+
+cheatsheet:
+	python3 docs/cheatsheet/build.py --profile eyrwsl

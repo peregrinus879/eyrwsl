@@ -25,6 +25,7 @@ Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Referenc
 - Use this skill when Omarchy or a reference repo changed materially, including after an Omarchy release.
 - Use this skill when repo scope or behavior changed materially.
 - Use this skill when you suspect undocumented drift between this repo and its references.
+- Review the affected hdw guide sections after a binding/command change or a relevant application/plugin update, including inherited defaults that changed without an owned keymap-file diff.
 - Use this skill before broad sync-oriented doc updates.
 
 ## Workflow
@@ -42,7 +43,7 @@ Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Referenc
 8. Check `git log --format="%h %ad %s" --date=short -- <file>` on the relevant reference repo when you need to determine when a difference was introduced
 9. Cross-check differences against `DEVIATIONS.md`. If a difference is not documented there, treat it as a likely upstream change that needs review
 10. Apply new upstream additions and changes where they belong in this repo
-11. Update each affected documentation owner: README overview, AGENTS invariants, DEVIATIONS rationale, `docs/setup.md` procedures, and `docs/operations.md` usage/verification. Keep only unresolved work and revalidation evidence in `docs/maintenance.md`
+11. Update each affected documentation owner: README overview, AGENTS invariants, DEVIATIONS rationale, `docs/setup.md` procedures, and `docs/operations.md` usage/verification. Reconcile the hdw guide through `docs/cheatsheet/README.md` (Change-coupled maintenance): review added, changed and removed bindings/commands in the affected host/default layers, including Herdr, the outer terminal, Neovim/Neo-tree/vault plugins, Bash and Yazi. Compare installed/version-matched defaults even when no personal mapping file changed; route AI-client interface changes through EyrAgents' `/eyrsync`. Update affected entries, recipes, routing notes and source evidence together, then regenerate both companion guides. A generator/twin pass does not establish semantic or live-keymap accuracy. Keep only unresolved work and revalidation evidence in `docs/maintenance.md`
 12. Summarize which changes were adopted, rejected, or intentionally kept different
 
 ## Completion Checks
@@ -50,6 +51,7 @@ Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Referenc
 - Check Hermes separately against Omarchy's `omarchy-install-hermes-cli` and current mise pipx backend documentation. Its uv-first wrapper persists Python 3.13 options for subsequent `mise up`; keep WSL cooldown/paranoid mode and reject wrong-interpreter/foreign launcher state without forced repair. Do not copy Desktop takeover/removal logic. `ha` maps to `hermes` or `hermes -c`, with continuation's native cwd behavior documented.
 
 - The overview, invariants, deviations, and affected setup/operation guides reflect the change without duplicating detailed procedures
+- Every affected hdw guide section has been reconciled with the owning configuration/source/help, including additions and removals. Both generated outputs are current and the shared authoring twins agree. Unchanged behavior is stated in the change review; unavailable/unauthorized sibling or actual-host checks remain explicit incomplete work at the maintenance owner, not a fabricated completed guide review
 - `make refs` passed in this run; Omarchy release comparisons still use tag `v4.0.0`
 - Every retained difference is still documented in `DEVIATIONS.md`
 - For twin changes, `make twins` checks local worktrees; after both commits exist, `twins-pair` checks the exact full `SELF_COMMIT`/`PEER_COMMIT` pair at `SIBLING`. Inputs remain literal data and peer code never executes. Hosted final-pair evidence must name the final published commits; earlier-peer CI is not a substitute or publication authorization

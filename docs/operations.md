@@ -4,6 +4,20 @@
 
 Run Make targets from the repository root, on the host required by each target.
 
+## Workflow Cheat Sheet
+
+Open the self-contained [hdw Workflow Guide](hdw.html) in a browser. From Arch Bash, open its Windows path and choose a browser if prompted:
+
+```bash
+explorer.exe "$(wslpath -w "$PWD/docs/hdw.html")"
+```
+
+Daily and All views cover Herdr, the four AI clients, Neovim/Neo-tree, Git review, vault notes, Bash tools and Yazi. The host profile selects outer-terminal controls and host-specific notes. Search, saved keys, copyable launcher commands and printing work offline; source links open online references when selected.
+
+One keybinding is a shortcut; a keymap is the collection. Both belong in this single guide. Its shared source and [maintenance instructions](cheatsheet/README.md) live under `docs/cheatsheet/`; `make cheatsheet` rebuilds the HTML, `make check` rejects stale output, and `make twins` compares the shared authoring files. Update both companion guides when their shared configuration changes.
+
+Guide reconciliation is part of every in-scope binding or command addition, change and removal. Follow [change-coupled maintenance](cheatsheet/README.md#change-coupled-maintenance), including inherited-default changes after application/plugin updates. `/omasync` owns host/default review; EyrAgents' `/eyrsync` owns AI-client review. The checks verify generated/twin consistency, not the accuracy of live keymaps.
+
 ## Native Herdr
 
 Open Herdr independently by running `herdr` in a normal-user Arch shell. In a shell inside that session, navigate to the desired directory, then run `hdw <cc|cx|oc|ha> [-c]` to create and focus a new workspace:

@@ -55,6 +55,8 @@ Open `herdr`, navigate to a project, then run `hdw ha` for a new Hermes/Neovim/s
 
 The [operations guide](docs/operations.md) covers workspaces, Git review and worktrees, synchronization helpers, updates, and verification.
 
+Open the [hdw Workflow Guide](docs/hdw.html) in a browser for searchable keys, commands, launch recipes and host notes across the whole workspace. It is a self-contained offline file; on GitHub, download the raw HTML first.
+
 [GitHub setup](docs/setup.md#github-access) uses the baseline GitHub CLI and HTTPS. [Operations](docs/operations.md#github-access) covers fresh-client and restart/reboot checks. EyrAgents owns exact commit approval, Push selection, agent execution and verification.
 
 ## Verify
@@ -67,6 +69,7 @@ The [operations guide](docs/operations.md) covers workspaces, Git review and wor
 | --- | --- |
 | Install, migrate, or recover the environment | [Setup](docs/setup.md) |
 | Use helpers, update tools, or verify changes | [Operations](docs/operations.md) |
+| Find hdw workspace keys, commands and everyday workflows | [Offline workflow guide](docs/hdw.html) |
 | Understand the terminal baseline and Windows differences | [Deviations](DEVIATIONS.md) |
 | Find unresolved issues or remaining host work | [Maintenance ledger](docs/maintenance.md) |
 | Complete the current cross-host migration | [WSL handoff](docs/handoff.md) |
