@@ -402,6 +402,10 @@ command -v claude codex opencode hermes
 
 Hermes's stowed wrapper installs mise-managed uv first, then `pipx:hermes-agent` with `extras=all` and persistent `uvx_args`/`pipx_args` selecting Python 3.13. It follows Omarchy's PyPI channel, currently Hermes 0.19.0, while retaining EyrWSL's release cooldown. Later `mup` runs preserve the interpreter options even when shell activation bypasses the wrapper. No global Python is installed for Hermes. An existing wrong-Python environment refuses rather than being force-reinstalled. `make verify` checks ownership, the interpreter and persisted options without installing or launching Hermes. Complete `hermes model` interactively for authentication; use `mup` rather than Hermes's Git-checkout updater. The native TUI's Node dependency is optional; bare `hermes` honors the user's interface choice.
 
+### GitHub Access
+
+For GitHub work, complete [GitHub CLI login and HTTPS setup](#github-login-and-https) inside Arch WSL after Stow. `github-cli` is already in the 42-package baseline. The bootstrap HTTPS clone needs no transport change; existing SSH origins need their own exact review. Complete the [fresh-client and restart/reboot checks](operations.md#github-access) before claiming routine readiness. Login is host-local and separate from EyrAgents' commit/Push approvals. Readers who do not use GitHub can skip this stage.
+
 ### 10. Optional EyrAgents
 
 Skip this step for an EyrWSL-only installation. It is recommended for the shared Claude Code, Codex, OpenCode, and Hermes Agent policies and workflows, but EyrWSL does not deploy it for you. Review [EyrAgents' setup guide](https://github.com/peregrinus879/eyragents/blob/main/docs/setup.md) and its local `AGENTS.md`/maintenance ledger before adopting its personal guidance and permissions. No EyrArcHy deployment belongs here.
@@ -435,6 +439,8 @@ Only if the destination does not already exist, clone in **Arch Bash, normal Lin
 ```bash
 git clone https://github.com/peregrinus879/eyragents.git ~/Projects/eyrie/eyragents
 ```
+
+This HTTPS clone also works with the host-local GitHub helper configured above. For an existing EyrAgents clone, review its fetch/push origins before choosing the corresponding canonical HTTPS URL. Preserve forks, custom destinations and separate push URLs. Public read-only harness installation does not require login.
 
 In **Arch Bash, normal Linux user, EyrAgents repository root**, preview its links:
 
@@ -581,6 +587,90 @@ make -C /old/clone/path unstow
 ```
 
 Unstow removes this repository's links, not the clone or your generated host data; applications may lack their configuration until you stow again. It does not undo Windows Terminal deployment or remove optional EyrAgents. If the old clone is unavailable, recognized dangling links can be handled by `make clean`; a live link into a different clone must be resolved at its owner rather than forced away.
+
+### GitHub Login And HTTPS
+
+Use Linux `gh`, supplied by the existing `github-cli` package, in **Arch WSL Bash as the normal Linux user**. Complete the host-local Git identity/include setup and Stow first. This setup uses GitHub CLI for both API access and HTTPS Git authentication; it requires no Windows SSH service, relay or key enrollment.
+
+H checks an existing login locally:
+
+```bash
+gh auth status --hostname github.com
+```
+
+If login is needed, complete the browser/device-code flow locally. Open the displayed URL in the Windows browser if it does not open automatically:
+
+```bash
+GIT_CONFIG_GLOBAL="$HOME/.config/git/config.local" GH_PATH=gh \
+  gh auth login --hostname github.com --git-protocol https --web
+```
+
+Then configure the standard Git helper:
+
+```bash
+GIT_CONFIG_GLOBAL="$HOME/.config/git/config.local" GH_PATH=gh \
+  gh auth setup-git --hostname github.com
+```
+
+These command-scoped variables keep helper settings in the existing untracked include and store `!gh auth git-credential`, resolving the current executable through the normal trusted PATH instead of a versioned installation directory. Plain `gh auth setup-git` can write through the stowed global Git config into this repository; use the host-local target above. The setup command resets helper chains specifically for `github.com` and `gist.github.com`; review an existing custom/account-specific helper choice first. Other hosts retain their configuration. Protocol preferences apply to this GitHub host across CLI accounts, but do not rewrite existing clone URLs.
+
+GitHub CLI uses an OS credential store when available and can fall back to a host-local plaintext file. H checks the reported storage choice locally and decides whether it fits the actual WSL host's protection. Linux CLI storage is not automatically Windows Credential Manager or DPAPI-backed. Preserve existing account access, keep generated authentication state outside Git, and never dump tokens or authentication files into reports. References: [login/storage](https://cli.github.com/manual/gh_auth_login), [helper setup](https://cli.github.com/manual/gh_auth_setup-git), and [`GH_PATH`](https://cli.github.com/manual/gh_help_environment).
+
+The bootstrap origin already uses HTTPS. In **H's canonical EyrWSL clone**, inspect both directions:
+
+```bash
+git remote get-url --all origin
+git remote get-url --push --all origin
+```
+
+If that reviewed origin still uses SSH and H intends the canonical destination, change only it:
+
+```bash
+git remote set-url origin https://github.com/peregrinus879/eyrwsl.git
+git remote get-url --push --all origin
+```
+
+Expect the canonical HTTPS URL. Preserve custom/fork destinations and convert any SSH push URL to the equivalent HTTPS destination independently. Apply the [all-repository procedure](#all-repositories-under-projects) for existing project clones. Complete [GitHub access verification](operations.md#github-access), including fresh-client, WSL-restart and Windows-reboot checks, before marking the [handoff](handoff.md) complete.
+
+### All Repositories Under Projects
+
+Run this migration on the actual host where Git will be used, after host-local `gh` setup. Remote settings live in local Git metadata; committing or pulling these docs does not transfer another host's remote changes.
+
+Inventory actual repositories recursively below `~/Projects`, including project groups, personal forks, reference clones and repositories in additional subtrees. Detect both `.git` directories and worktree `.git` files; use `git -C REPO_PATH rev-parse --path-format=absolute --git-common-dir` to avoid editing shared metadata twice. Keep credential stores, other tools' session histories, dependency/build/cache trees and symlink escapes out of discovery. Report exclusions or unreadable locations. An ordinary directory or a repository without remotes is not a reason to create a clone or add a remote.
+
+Prioritize these existing canonical clones, verifying their current destinations before changing them:
+
+| Repository | Expected canonical HTTPS origin |
+| --- | --- |
+| `~/Projects/eyrie/omasecboot` | `https://github.com/peregrinus879/omasecboot.git` |
+| `~/Projects/mews/shahynmc` | `https://github.com/peregrinus879/shahynmc.git` |
+
+Also cover every other discovered repository, including the harness/dotfiles, personal Omarchy fork and frozen `dotfiles-arch` clone when present. Preserve a fork's actual owner and its separate upstream. This is a transport migration, not repository relocation, visibility change, branch migration or a refresh of reference clones.
+
+For each repository, record its HEAD, index/worktree status, remote names and all effective fetch/push URLs using native Git metadata queries. Inspect explicit `remote.REMOTE.pushurl` entries separately from the fallback to fetch URLs, and account for includes, worktree configuration and URL rewrites. Never display embedded credentials; use safe URL-value filtering and name-only diagnostics for unsupported entries. Tracked `.gitmodules` or other source-owned SSH URLs, if present, need their own reviewed source change rather than an unrecorded broad replacement.
+
+Convert canonical GitHub SSH forms such as `git@github.com:OWNER/REPO.git` or `ssh://git@github.com/OWNER/REPO.git` to `https://github.com/OWNER/REPO.git`. Preserve spelling and repository identity. For a reviewed single-entry example, substitute the actual path, remote and literal owner/repository in these commands:
+
+```bash
+git -C REPO_PATH remote set-url REMOTE https://github.com/OWNER/REPO.git '^git@github[.]com:OWNER/REPO[.]git$'
+```
+
+An existing explicit SSH push URL needs its own replacement, preserving its possibly different repository:
+
+```bash
+git -C REPO_PATH remote set-url --push REMOTE https://github.com/OWNER/REPO.git '^git@github[.]com:OWNER/REPO[.]git$'
+```
+
+The final operand matches the exact old URL as a regular expression; escape metacharacters in actual names. Re-read before each change and preserve multiple URL entries and their order instead of collapsing them. Already-HTTPS URLs stay intact, and a missing push URL continues to inherit the fetch destination. Keep branch tracking, fetch refspecs and push defaults. A non-GitHub server or SSH host alias needs a verified HTTPS endpoint, not an inferred GitHub URL. Do not install a global `insteadOf`/`pushInsteadOf` rule to conceal remaining SSH configuration.
+
+Re-enumerate every repository and remote afterward. Verify both `remote get-url --all REMOTE` and `remote get-url --push --all REMOTE` and unchanged HEAD/index/worktree state. For access checks, collect every distinct effective fetch and push HTTPS endpoint from that validated inventory and check each changed destination directly. A remote-name `ls-remote` checks the fetch destination only and cannot establish access to a separate push destination. In the bounded command below, replace `REPO_PATH` with the actual repository path and `HTTPS_ENDPOINT` with one safely validated credential-free URL; repeat for every distinct changed fetch/push endpoint:
+
+```bash
+GIT_TERMINAL_PROMPT=0 GH_PROMPT_DISABLED=1 timeout --kill-after=2s 30s \
+  git -C REPO_PATH -c credential.interactive=false ls-remote --exit-code -- HTTPS_ENDPOINT HEAD
+```
+
+For `shahynmc`, also check `gh repo view peregrinus879/shahynmc --json nameWithOwner,isPrivate,viewerPermission`; it must remain private. A successful private-repository HTTPS lookup establishes authenticated Git read access, while public refs can be anonymous. Neither is publication approval or write-path verification. Report unsupported endpoints and pending access instead of claiming a complete migration, then carry the actual inventory into the [WSL handoff acceptance](handoff.md#github-access-acceptance).
 
 ## Troubleshooting
 

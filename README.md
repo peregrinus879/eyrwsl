@@ -43,6 +43,7 @@ Choose the appropriate entry point in the [setup guide](docs/setup.md):
 
 - [New Windows/Arch WSL installation](docs/setup.md#before-you-begin), with explicit Windows, root, and normal-user steps.
 - [Existing installation](docs/setup.md#existing-installations), preserving your distribution, user, projects, and configuration.
+- [GitHub access](docs/setup.md#github-access), including host-local login and prompt-free restart/reboot verification.
 - [Troubleshooting and recovery](docs/setup.md#troubleshooting).
 - [Windows Terminal deployment](docs/setup.md#12-windows-terminal), a reviewed full-file replacement with backup and rollback.
 
@@ -53,6 +54,8 @@ Choose the appropriate entry point in the [setup guide](docs/setup.md):
 Open `herdr`, navigate to a project, then run `hdw ha` for a new Hermes/Neovim/shell workspace. `hdw ha -c` continues Hermes; `cc`, `cx`, and `oc` select the other clients.
 
 The [operations guide](docs/operations.md) covers workspaces, Git review and worktrees, synchronization helpers, updates, and verification.
+
+[GitHub setup](docs/setup.md#github-access) uses the baseline GitHub CLI and HTTPS. [Operations](docs/operations.md#github-access) covers fresh-client and restart/reboot checks. EyrAgents owns exact commit approval, Push selection, agent execution and verification.
 
 ## Verify
 

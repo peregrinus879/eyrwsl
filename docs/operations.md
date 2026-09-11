@@ -23,6 +23,24 @@ Cooperating calls are serialized. Caller identity, the pre-creation workspace in
 
 The `cc`/`cx`/`oc`/`ha` selectors are arguments, not shell aliases. `hdw` sends full commands and still loads applicable EyrAgents settings; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
 
+## GitHub Access
+
+After [host-local setup](setup.md#github-login-and-https), open a fresh normal Arch WSL terminal in this clone and check:
+
+```bash
+command -v gh
+git remote get-url --push --all origin
+gh repo view peregrinus879/eyrwsl --json nameWithOwner,viewerPermission
+GIT_TERMINAL_PROMPT=0 GH_PROMPT_DISABLED=1 \
+  git -c credential.interactive=false ls-remote --exit-code --refs origin refs/heads/main
+```
+
+Expect the canonical HTTPS origin, intended repository/access level, and a branch ID without another credential prompt. Public Git refs can be read anonymously; that result alone does not establish authenticated Git writes. H checks helper configuration locally, without displaying credentials, and the next independently approved publication supplies real write-path evidence.
+
+After saving work, at a time H chooses, check `wsl --list --verbose` in **normal Windows PowerShell**. H can then terminate only the intended distribution with `wsl --terminate archlinux`, substituting its actual registered name if different. Reopen it through Windows Terminal and repeat the checks above without refreshing credentials. At the next H-chosen Windows reboot, sign in normally and repeat them from a fresh Arch WSL terminal. Confirm prompt absence explicitly; a manually repaired terminal is not persistence evidence. Launch new AI clients there and record actual versions, source IDs and outcomes in [maintenance](maintenance.md#deferred-work) and the [handoff](handoff.md).
+
+Authentication readiness is separate from EyrAgents' exact commit approval, exact Push selection, agent execution and verification. Codex retains its restrictions and hands publication to a separately launched network-capable primary with fresh approval. Credential access carries the account's permissions, not read-only isolation. A locked store, expired login or wrong account requires H-local recovery through the standard CLI/native UI. Neither TLS/host-trust weakening nor dumping tokens is a recovery step. Follow the setup command's host-local configuration target when refreshing Git helper settings after an update.
+
 ## Git Review
 
 After stowing, start a fresh Neovim session once to load `git-review.lua`. `Space g d` shows staged and unstaged hunks, `Space g D` compares against origin, and `Space g s` shows status including untracked files. Each invocation uses the current file/directory's Git repository or the selected Neo-tree item, falling back to the displayed tree root when no item path exists. Symlink targets and linked worktrees are supported; switching files between repositories switches the review target without changing any editor directory.
