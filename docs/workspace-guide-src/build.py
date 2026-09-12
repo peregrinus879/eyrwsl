@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build/check the self-contained hdw guide using only the Python standard library.
+"""Build/check the self-contained workspace guide using only the Python standard library.
 
 Both hosts share the complete template and reference. Only the embedded profile
 selector differs in the generated HTML. No network or installed app is needed.
@@ -72,10 +72,10 @@ def main():
     output = template.replace('__REFERENCE__', payload).replace('__PROFILE__', args.profile)
     if '\u2014' in output:
         raise ValueError('use periods, commas or semicolons instead of em dashes')
-    target = ROOT.parent / 'hdw.html'
+    target = ROOT.parent / 'workspace-guide.html'
     if args.check:
         if not target.exists() or target.read_text(encoding='utf-8') != output:
-            raise SystemExit('FAIL: docs/hdw.html is stale; run make cheatsheet')
+            raise SystemExit('FAIL: docs/workspace-guide.html is stale; run make workspace-guide')
         print(f'ok:   {args.profile} offline guide is current; {len(data["items"])} reference actions')
     else:
         target.write_text(output, encoding='utf-8')

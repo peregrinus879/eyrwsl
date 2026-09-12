@@ -1,5 +1,5 @@
 {
-  "title": "hdw Workflow Guide",
+  "title": "Workspace Guide",
   "reviewed": "2026-09-12",
   "scope": "Workflow reference for the environment hdw opens. Covers its complete launcher interface, Herdr controls, editor/tree/Git/vault work, four AI clients, shell tools, Yazi, and the outer terminal. Application help supplies the full evolving command catalogs and plugin-specific actions.",
   "sources": {
@@ -6386,7 +6386,7 @@
       "name": "EyrArcHy",
       "host": "Omarchy · Linux",
       "terminal": "Ghostty",
-      "open": "xdg-open docs/hdw.html",
+      "open": "xdg-open docs/workspace-guide.html",
       "notes": [
         "Open Herdr with herdr or Super+Ctrl+Enter. The inspected host uses Herdr 0.8.2 and Ghostty 1.3.1-arch2.",
         "Omarchy owns the Herdr map, outer terminal and base editor. hdw invokes ${EDITOR:-nvim} .; the chosen default editor can change what appears in the top-right pane.",
@@ -6400,7 +6400,7 @@
       "name": "EyrWSL",
       "host": "Arch WSL2 · Windows",
       "terminal": "Windows Terminal",
-      "open": "explorer.exe \"$(wslpath -w \"$PWD/docs/hdw.html\")\"",
+      "open": "explorer.exe \"$(wslpath -w \"$PWD/docs/workspace-guide.html\")\"",
       "notes": [
         "Open herdr from a normal-user Arch shell in Windows Terminal. This guide follows the Omarchy-style Herdr map documented by EyrWSL operations, not an inspected WSL session.",
         "Herdr configuration/keymap is retained host state, outside Stow. Check Ctrl+Space then ? on the actual host. A clean upstream Herdr instead defaults to Ctrl+B and different close/detach keys; do not assume the maps are interchangeable.",
