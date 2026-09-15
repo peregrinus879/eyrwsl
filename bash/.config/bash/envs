@@ -7,11 +7,6 @@ export BAT_THEME=ansi
 export MANROFFOPT="-c"
 export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 
-# OpenCode host behavior; EyrAgents owns runtime configuration. Skip the Claude
-# Code skill copies: OpenCode reads .agents/skills natively.
-export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
-export OPENCODE_ENABLE_EXA=1
-
 # Login shells load /etc/locale.conf through /etc/profile.d/locale.sh. Mirror
 # that fallback for SSH and Herdr sessions that start non-login shells.
 if [[ -z ${LANG:-} ]]; then

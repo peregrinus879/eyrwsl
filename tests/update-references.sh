@@ -1,6 +1,6 @@
 #!/bin/bash
 # Fixtures for scripts/update-references.sh against local bare upstreams: the
-# family union of references.txt files defines the quarry, missing own
+# explicit host-pair union of references.txt defines the quarry, missing own
 # references are cloned, listed clones fast-forward while preserving tags, unlisted
 # clones are always reported and kept, ahead-only listed branches fail, manifest
 # conflicts stop the run before any change, and dry runs change nothing.
@@ -55,10 +55,12 @@ gamma $TMP/upstream/gamma.git
 MANIFEST
 }
 
-run() { QUARRY="$TMP/quarry" bash "$TMP/eyrie/eyrarchy/scripts/update-references.sh" "$@"; }
+run() { REFERENCE_PEER="$TMP/eyrie/eyrwsl" QUARRY="$TMP/quarry" bash "$TMP/eyrie/eyrarchy/scripts/update-references.sh" "$@"; }
 
 for name in alpha beta gamma stale unpushed; do make_upstream "$name"; done
 make_family
+mkdir -p "$TMP/eyrie/unrelated"
+printf 'malformed unrelated manifest\n' >"$TMP/eyrie/unrelated/references.txt"
 mkdir -p "$TMP/quarry"
 git clone -q -- "$TMP/upstream/beta.git" "$TMP/quarry/beta"
 git -C "$TMP/work/beta" tag nightly >/dev/null

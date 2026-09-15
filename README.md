@@ -27,15 +27,14 @@ The Linux directories above are Stow packages. `scripts/`, `tests/`, and `docs/`
 
 ## Repository Family
 
-The three repositories share the `Eyr` prefix and normally live under `~/Projects/eyrie/`.
+The two host-dotfiles repositories share selected configuration and verification contracts.
 
 | Repository | Purpose |
 | --- | --- |
-| [EyrAgents](https://github.com/peregrinus879/eyragents) | Shared guidance, skills, and reviewed Git workflows for Claude Code, Codex, OpenCode, and Hermes Agent. |
 | [EyrArcHy](https://github.com/peregrinus879/eyrarchy) | Personal shell, desktop, and editor customizations for an existing Omarchy installation. |
 | [EyrWSL](https://github.com/peregrinus879/eyrwsl) | A self-contained Arch WSL terminal environment with Windows integration and mise-managed AI tools. |
 
-EyrAgents is optional. EyrArcHy is for the Omarchy desktop and is not deployed on WSL.
+EyrArcHy is for the Omarchy desktop and is not deployed on WSL.
 
 ## Setup
 
@@ -57,7 +56,7 @@ The [operations guide](docs/operations.md) covers workspaces, Git review and wor
 
 Open the [Workspace Guide](docs/workspace-guide.html) in a browser for searchable keys, commands, launch recipes and host notes across the whole workspace. It is a self-contained offline file; on GitHub, download the raw HTML first.
 
-[GitHub setup](docs/setup.md#github-access) uses the baseline GitHub CLI and HTTPS. [Operations](docs/operations.md#github-access) covers fresh-client and restart/reboot checks. EyrAgents owns exact commit approval, Push selection, agent execution and verification.
+[GitHub setup](docs/setup.md#github-access) uses the baseline GitHub CLI and HTTPS. [Operations](docs/operations.md#github-access) covers fresh-client and restart/reboot checks.
 
 ## Verify
 

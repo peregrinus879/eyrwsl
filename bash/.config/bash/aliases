@@ -34,7 +34,7 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 
-# Tools; the AI tools run as EyrAgents configures them, so no launch aliases
+# Tools; AI clients use their normal configuration, with no launch aliases
 alias mup='mise up'
 n() { if [ "$#" -eq 0 ]; then command nvim . ; else command nvim "$@"; fi; }
 

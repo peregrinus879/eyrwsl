@@ -13,7 +13,7 @@ Use a supported Windows release, preferably current Windows 11, on an x86-64 PC 
 - **Fresh Windows machine:** follow the numbered steps in order.
 - **WSL installed, but no Arch distribution:** keep your other distributions; skip only WSL's initial installation command, then install Arch under your normal Windows account.
 - **Arch or EyrWSL already installed:** read [Existing Installations](#existing-installations) first. Do not reinstall the distribution, recreate its user, reclone over an existing directory, or remove configuration/authentication directories to resolve conflicts.
-- **Ownership:** EyrWSL owns this WSL terminal environment; optional EyrAgents owns the shared AI harness; EyrArcHy owns the Omarchy desktop and is not deployed on WSL. No sibling or reference clone is required to install EyrWSL.
+- **Ownership:** EyrWSL owns this WSL terminal environment; EyrArcHy owns the Omarchy desktop and is not deployed on WSL. AI-client configuration is independent. No sibling or reference clone is required to install EyrWSL.
 
 Run commands one at a time and stop on an unexpected error. A code block's label names the machine, shell, user, and working directory where relevant. PowerShell commands are not Bash commands. An elevated Windows account is not the Linux `root` account. Do not type prompt prefixes such as `PS C:\>`, `$`, or `#`. In Bash, a trailing `\` continues a command onto the next line; paste those lines together, with nothing after the backslash.
 
@@ -222,7 +222,7 @@ sudo pacman -Syu --needed 7zip bash-completion bat btop curl diffutils eza fastf
 
 All 42 packages in this command come from official Arch repositories; their normal dependencies are installed automatically. `--needed` skips already-current packages, while `-Syu` completes a full system upgrade. Read Pacman's transaction and any provider/replacement prompts before accepting. [Partial upgrades are unsupported](https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported): do not replace this with `pacman -Sy` followed by selective installs.
 
-The baseline stays terminal-only: `inetutils` supplies `hostname`, `lua` supplies the Lua syntax verifier, `tree-sitter-cli` supports LazyVim, `python` supports repository checks and user-owned vault scripts, `man-db`/`man-pages` supply local documentation, and 7-Zip supports Yazi archives. No desktop `xdg-utils`, Linux font package, AUR package/helper, or Node runtime is added here. **Node.js is a separate prerequisite for optional EyrAgents**, not for the three prebuilt AI binaries. Hermes uses private Python; its modern TUI additionally requires Node.
+The baseline stays terminal-only: `inetutils` supplies `hostname`, `lua` supplies the Lua syntax verifier, `tree-sitter-cli` supports LazyVim, `python` supports repository checks and user-owned vault scripts, `man-db`/`man-pages` supply local documentation, and 7-Zip supports Yazi archives. No desktop `xdg-utils`, Linux font package, AUR package/helper, or Node runtime is added here. Node.js is not required by the three prebuilt AI binaries. Hermes uses private Python; its modern TUI additionally requires Node.
 
 Verify the package list in **Arch Bash, normal Linux user**. Success prints nothing and returns to the prompt; every printed package name is an unmet dependency to resolve:
 
@@ -276,7 +276,7 @@ pwd
 git status --short --branch
 ```
 
-**Checkpoint:** the path is `/home/linuxuser/Projects/eyrie/eyrwsl` with your login, and status reports `main` tracking `origin/main` with no changed files on a fresh clone. Read `AGENTS.md`, `DEVIATIONS.md`, and `docs/maintenance.md` before deployment. EyrAgents is cloned separately in its optional step; EyrArcHy and `make refs` are not bootstrap requirements.
+**Checkpoint:** the path is `/home/linuxuser/Projects/eyrie/eyrwsl` with your login, and status reports `main` tracking `origin/main` with no changed files on a fresh clone. Read `AGENTS.md`, `DEVIATIONS.md`, and `docs/maintenance.md` before deployment. EyrArcHy and `make refs` are not bootstrap requirements.
 
 ### 6. Neovim Ownership
 
@@ -358,11 +358,9 @@ cd ~
 readlink -f ~/.bashrc
 command -v mise herdr nvim starship
 mise settings get paranoid
-printenv OPENCODE_DISABLE_CLAUDE_CODE_SKILLS
-printenv OPENCODE_ENABLE_EXA
 ```
 
-**Checkpoint:** `.bashrc` resolves into this EyrWSL clone's `bash/.bashrc`, all four commands resolve, paranoid mode prints `true`, and both environment checks print `1`. A fresh shell should show Starship without errors.
+**Checkpoint:** `.bashrc` resolves into this EyrWSL clone's `bash/.bashrc`, all four commands resolve, and paranoid mode prints `true`. A fresh shell should show Starship without errors.
 
 Check the **resolved Git identity configuration** in **Arch Bash, normal Linux user, EyrWSL repository root**, without displaying either value:
 
@@ -396,7 +394,7 @@ mise ls claude codex opencode pipx:hermes-agent uv
 command -v claude codex opencode hermes
 ```
 
-**Checkpoint:** mise lists an installed version of all four tools, and each command resolves under `~/.local/share/mise` or to its `~/.local/bin` wrapper, not an old Pacman/native/Windows install. Full EyrWSL verification requires these binaries even if you skip the optional EyrAgents harness; sign-in is needed only when using each provider.
+**Checkpoint:** mise lists an installed version of all four tools, and each command resolves under `~/.local/share/mise` or to its `~/.local/bin` wrapper, not an old Pacman/native/Windows install. Full EyrWSL verification requires these binaries independently of optional client configuration; sign-in is needed only when using each provider.
 
 ### Hermes Installation And Updates
 
@@ -404,58 +402,11 @@ Hermes's stowed wrapper installs mise-managed uv first, then `pipx:hermes-agent`
 
 ### GitHub Access
 
-For GitHub work, complete [GitHub CLI login and HTTPS setup](#github-login-and-https) inside Arch WSL after Stow. `github-cli` is already in the 42-package baseline. The bootstrap HTTPS clone needs no transport change; existing SSH origins need their own exact review. Complete the [fresh-client and restart/reboot checks](operations.md#github-access) before claiming routine readiness. Login is host-local and separate from EyrAgents' commit/Push approvals. Readers who do not use GitHub can skip this stage.
+For GitHub work, complete [GitHub CLI login and HTTPS setup](#github-login-and-https) inside Arch WSL after Stow. `github-cli` is already in the 42-package baseline. The bootstrap HTTPS clone needs no transport change; existing SSH origins need their own exact review. Complete the [fresh-client and restart/reboot checks](operations.md#github-access) before claiming routine readiness. Login is host-local and does not authorize repository mutations. Readers who do not use GitHub can skip this stage.
 
-### 10. Optional EyrAgents
+### 10. Client Configuration
 
-Skip this step for an EyrWSL-only installation. It is recommended for the shared Claude Code, Codex, OpenCode, and Hermes Agent policies and workflows, but EyrWSL does not deploy it for you. Review [EyrAgents' setup guide](https://github.com/peregrinus879/eyragents/blob/main/docs/setup.md) and its local `AGENTS.md`/maintenance ledger before adopting its personal guidance and permissions. No EyrArcHy deployment belongs here.
-
-Before optional harness deployment, check the daily account in **Arch Bash, normal Linux user**:
-
-```bash
-id -u
-```
-
-Follow [EyrAgents' WSL account requirement](https://github.com/peregrinus879/eyragents/blob/main/docs/setup.md#wsl-account-check). Its current profile assumes UID `1000`; a different result stops this optional step for policy review, not account renumbering or weaker permissions. **EyrWSL itself has no UID 1000 restriction.**
-
-**Optional EyrAgents needs Node.js for JavaScript checks and PyYAML for Hermes configuration. Neither is supplied by EyrWSL's baseline.** If a suitable Linux `node` runtime is already installed, keep its current owner rather than adding a competing one. Otherwise install the official [Arch `nodejs` package](https://archlinux.org/packages/extra/x86_64/nodejs/) in **Arch Bash, normal Linux user**:
-
-```bash
-sudo pacman -Syu --needed nodejs
-node --version
-```
-
-Install PyYAML for the system Python used by repository checks, also in **Arch Bash, normal Linux user**:
-
-```bash
-sudo pacman -Syu --needed python-yaml
-python3 -c 'import yaml; print(yaml.__version__)'
-```
-
-Expect Node's `v...` version and a PyYAML version. `npm` and a global mise Node pin are not prerequisites for this setup. The remaining EyrAgents prerequisites, including Git, Stow, jq, Python, ShellCheck, and util-linux, are already in the WSL baseline.
-
-Only if the destination does not already exist, clone in **Arch Bash, normal Linux user**:
-
-```bash
-git clone https://github.com/peregrinus879/eyragents.git ~/Projects/eyrie/eyragents
-```
-
-This HTTPS clone also works with the host-local GitHub helper configured above. For an existing EyrAgents clone, review its fetch/push origins before choosing the corresponding canonical HTTPS URL. Preserve forks, custom destinations and separate push URLs. Public read-only harness installation does not require login.
-
-In **Arch Bash, normal Linux user, EyrAgents repository root**, preview its links:
-
-```bash
-cd ~/Projects/eyrie/eyragents
-make dry-run
-```
-
-Resolve reported configuration conflicts using EyrAgents' own instructions, then run in **Arch Bash, normal Linux user, EyrAgents repository root**:
-
-```bash
-make stow
-```
-
-This deploys the harness and Hermes plugin, installs its commit gate, and reconciles private host-local Codex and Hermes configuration. [EyrAgents setup](https://github.com/peregrinus879/eyragents/blob/main/docs/setup.md) owns the reconciliation details. The Stow preview is not a preview of every reconciliation side effect. On an existing host, close agent sessions first and preserve host-owned settings; do not replace the entire `~/.claude`, `~/.codex`, or OpenCode directory or inspect/copy authentication files to make Stow pass. EyrAgents owns those rules, not EyrWSL. Start new agent processes after deployment, especially OpenCode.
+The installed AI clients use their normal per-user configuration. This repository owns their installation and generic launching, while model settings, permissions and agent workflows are managed independently.
 
 ### 11. First Launch
 
@@ -488,12 +439,7 @@ cd ~/Projects/eyrie/eyrwsl
 make verify
 ```
 
-Expect successful checks ending in `ok:   verify`, with no `FAIL` lines. A missing EyrArcHy sibling produces an explicitly skipped twin check; it is not a reason to deploy EyrArcHy on WSL. If you installed the optional harness, run `make verify` separately in **Arch Bash, normal Linux user, EyrAgents repository root**:
-
-```bash
-cd ~/Projects/eyrie/eyragents
-make verify
-```
+Expect successful checks ending in `ok:   verify`, with no `FAIL` lines. A missing EyrArcHy sibling produces an explicitly skipped twin check; it is not a reason to deploy EyrArcHy on WSL.
 
 ### 12. Windows Terminal
 
@@ -574,7 +520,7 @@ make dry-run
 make restow
 ```
 
-An initial preview may identify old links that `make clean` is designed to repair; do not bypass an unfamiliar ownership refusal. The last preview must be conflict-free. Open a fresh Arch tab, repeat the mise/bootstrap checks in [Stow](#9-stow), and run `make verify`. Existing authentication should still be present; do not sign out or erase auth merely to test the update. Handle optional EyrAgents upgrades in its own deployed clone, using its setup guide and ledger, with Node and PyYAML available. Windows Terminal changes always retain the separate diff/review/push/diff sequence.
+An initial preview may identify old links that `make clean` is designed to repair; do not bypass an unfamiliar ownership refusal. The last preview must be conflict-free. Open a fresh Arch tab, repeat the mise/bootstrap checks in [Stow](#9-stow), and run `make verify`. Existing authentication should still be present; do not sign out or erase auth merely to test the update. Windows Terminal changes always retain the separate diff/review/push/diff sequence.
 
 Local tmux support and copied Omarchy Herdr recipes are retired from EyrWSL's source; the baseline remains 42 packages. Pulling does not uninstall a host package or unload functions/aliases in an existing shell. The explicit retirement inventory covers `~/.config/bash/functions/{tdw,tmux,herdr}`, `~/.config/tmux/tmux.conf`, and a former folded `~/.config/tmux` link to this clone's `tmux/.config/tmux`. The Herdr helper endpoint maps only to this clone's former `bash/.config/bash/functions/herdr`, not the native `herdr` binary or its configuration/keymap. The inventory survives deletion of these sources from Git and `PACKAGES`, including pending known deletions still in the index. Only exact links into this clone qualify; another clone or lookalike path refuses. Use the guarded clean/preview/restow sequence above, not restow alone; verification only checks, never cleans. Keep real directories, user data/state and active sessions. Actual installed-package removal remains a separately approved WSL task in the [host procedure](maintenance.md#wsl-host-pass).
 
@@ -586,7 +532,7 @@ To **move a deployed clone**, first preserve any local work and run `make unstow
 make -C /old/clone/path unstow
 ```
 
-Unstow removes this repository's links, not the clone or your generated host data; applications may lack their configuration until you stow again. It does not undo Windows Terminal deployment or remove optional EyrAgents. If the old clone is unavailable, recognized dangling links can be handled by `make clean`; a live link into a different clone must be resolved at its owner rather than forced away.
+Unstow removes this repository's links, not the clone or your generated host data; applications may lack their configuration until you stow again. It does not undo Windows Terminal deployment. If the old clone is unavailable, recognized dangling links can be handled by `make clean`; a live link into a different clone must be resolved at its owner rather than forced away.
 
 ### GitHub Login And HTTPS
 
@@ -722,7 +668,6 @@ Save work before terminating Arch from normal-user PowerShell using the step 2 c
 - **Preparation/Stow conflict:** follow [Prepare](#8-prepare), comparing only the reported owned path and preserving its needed content. `make clean` is not a force option. Never use `stow --adopt`, `ln -sf`, or broad file deletion to bypass a refusal.
 - **Another-clone ownership error:** inspect `readlink -f ~/.bashrc` in normal-user Arch Bash and use that deployed clone. A move requires unstowing from the old clone first; do not repoint live links from an unrelated checkout.
 - **Commands/prompt missing after Stow:** open a fresh normal-user Arch tab outside existing multiplexer sessions and repeat the step 9 checks. `wsl -e COMMAND`, noninteractive Bash, and already-running multiplexers do not necessarily load the new `.bashrc` environment. Do not kill a multiplexer with unsaved work just to refresh its shell.
-- **EyrAgents reports `node: command not found`:** Node is not part of the WSL baseline. Complete [Optional EyrAgents](#10-optional-eyragents) and confirm `node --version` in normal-user Arch Bash before rerunning its gates.
 - **Git identity fails:** use the exact no-reply address from GitHub Settings > Emails in `~/.config/git/config.local`. Check legacy/repository overrides privately. Do not print `git config --list` into a support report, since unrelated settings may contain sensitive values.
 
 ### AI Tools
@@ -731,7 +676,7 @@ Save work before terminating Arch from normal-user PowerShell using the step 2 c
 - **First-run wrapper fails or appears stalled:** downloads require working network access and a release eligible under the cooldown. In normal-user Arch Bash from `~`, use `mise doctor` for activation problems or `mise use -g claude` for Claude's direct installation error; substitute `codex` or `opencode` for the other tools. This latter command installs/updates host state, it is not a read-only diagnostic. Do not add `sudo`, bypass cooldowns, or reinstall with a different package manager.
 - **Wrong binary starts:** in a fresh normal-user Arch Bash, use `type -a claude codex opencode hermes` and `mise ls claude codex opencode pipx:hermes-agent uv`. Follow the ownership checks under [Existing Installations](#existing-installations); do not erase provider configuration or auth to replace a launcher.
 - **Sign-in cannot open a browser:** open the tool's displayed URL in Windows yourself. Use only the tool's official flow and keep codes/tokens private. Account access and an expired session are provider issues, not reasons to delete dotfiles.
-- **OpenCode colors differ:** select `system` with OpenCode's `/theme`. If using EyrAgents, its `~/.config/opencode/tui.json` should resolve into that clone. Restart OpenCode after changing its configuration; EyrWSL does not own an OpenCode theme file.
+- **Application colors differ:** verify the active Windows Terminal profile uses Gruvbox. Applications with their own palette follow their user configuration; terminal-color inheritance is an optional application choice.
 
 ### Windows Integration
 

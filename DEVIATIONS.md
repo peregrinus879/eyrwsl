@@ -47,7 +47,7 @@ Omarchy is an opinionated Arch Linux distribution targeting a full desktop envir
 - [btop](https://github.com/aristocratos/btop) - config options and themes
 - [fastfetch Wiki](https://github.com/fastfetch-cli/fastfetch/wiki) - modules and JSON config
 
-Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and btop use the semantic palette from `themes/gruvbox/colors.toml`; Neovim selects `ellisonleao/gruvbox.nvim`; Yazi uses ANSI names resolved through Windows Terminal. OpenCode's `system` theme is selected by EyrAgents and inherits the same terminal palette.
+Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and btop use the semantic palette from `themes/gruvbox/colors.toml`; Neovim selects `ellisonleao/gruvbox.nvim`; Yazi uses ANSI names resolved through Windows Terminal. AI-client themes are configured independently; terminal-aware themes can inherit the same palette.
 
 ## Intentional Deviations
 
@@ -68,7 +68,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - `/omasync` owns reference-clone maintenance and upstream comparison; `docs/maintenance.md` owns unresolved decisions, deferred work, active limitations, and dated evidence.
 - `make refs` reports and keeps stale clones; listed default branches must reach exact fetched upstream parity by fast-forward. Atomic, non-forced fetches preserve existing local tags and annotations, import new tags, and prune only origin tracking branches. Checkout/merge use `--no-overwrite-ignore` so ignored files in listed clones are not overwritten. Ahead-only/divergent branches and tag/file conflicts refuse; resolution and any stale-clone disposal need separate review, including all refs, stashes, and ignored/untracked content before disposal.
 - Local `make twins` checks worktree copies and can skip a missing sibling. `twins-pair` compares committed blobs at full `SELF_COMMIT` and `PEER_COMMIT` IDs without executing peer code. Those IDs and `SIBLING` travel as literal data, not Make expressions or shell source. CI normally uses the peer default branch; manual dispatch accepts an explicit full `peer_commit` only with `peer_reviewed=true` and records both actual commits. Publication evidence must validate the final published pair; operator attestation is not authorization to publish.
-- Agent-tool verification approvals are handled by session or shared EyrAgents policy rather than repo-root project allowlists.
+- Agent-tool verification approvals are handled by the active agent session rather than repo-root project allowlists.
 
 ### Theme
 
@@ -97,8 +97,8 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - `hdw` and its declared tests/fixture are byte-identical twins with EyrArcHy. Native Herdr binary/configuration/keymap remain; open it with `herdr`. EyrWSL does not carry copied Omarchy `hdl`/`hdlm`/`hsl`/`hds` recipes or `h`/`t` aliases, and sync must not import desktop launch helpers.
 - Omarchy's SSH port-forwarding and dropped-connection recovery helpers are adopted; the reconnect helper's remote-tmux context remains valid without local tmux. `rsw <source> <destination>` keeps its interface but uses persistent inotify monitoring and event consumption during transfers, coalesces bursts, retries transfer failures after five seconds, and checks for reconciliation between transfers, 60 seconds after the last successful completion. It never adds `--delete`, so destination-only files remain. Startup reports readiness/PID/log path, not sync success; monitor/transfer failures are logged under `${XDG_STATE_HOME:-$HOME/.local/state}/rsw`. `lsw`/`dsw` manage only watchers started by this implementation via checked readiness/process records. SSH sockets use `XDG_RUNTIME_DIR/rsw-sockets`, falling back to `rsw-sockets` under the rsw state directory, not the credential-store tree. Runtime packages remain official `rsync` and `inotify-tools` plus the existing core utilities.
 - `ga <branch>` creates beside the actual checkout root even from a subdirectory and checks branch/add/navigation failures. `gd` takes no arguments and uses Git worktree metadata, not a directory-name guess; it confirms the real path/branch, rechecks HEAD/branch, and refuses dirty work or commits not contained in the primary worktree's current HEAD before ordinary `git worktree remove` and `git branch -d`. Directory changes use `builtin cd` so the interactive zoxide alias cannot reinterpret reviewed paths. A failed navigation preserves the created checkout; failed branch deletion retains the branch and reports the partial outcome. Force is a separate manual decision, not a helper option.
-- Interactive Bash exports `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` and `OPENCODE_ENABLE_EXA=1` so terminal-launched OpenCode skips the Claude Code skill copies, reads `.agents/skills` natively, and exposes its configured web-search tool. EyrAgents owns OpenCode configuration; this repo owns the WSL host environment. Shell initialization removes inherited `$HOME/.opencode/bin` entries and appends the user-level directories after existing system entries, so system binaries retain precedence: `/usr/local/bin`, then the mise shims and `~/.local/bin` in the order Omarchy's `env-bootstrap` uses.
-- The AI tools load applicable EyrAgents settings. EyrWSL carries no Omarchy AI launch aliases (`c`, `cx`, `cy`, `ic`, `ix`, `icx`); `hdw` sends full `claude`, `codex`, `opencode`, or `hermes` commands with only the selected continuation form. Its `cc`/`cx`/`oc`/`ha` arguments are not aliases or an isolated harness profile. ArcHy's stock shortcut flags apply only to those stock launches, not `hdw`.
+- Shell initialization removes inherited `$HOME/.opencode/bin` entries and appends user-level directories after system entries: `/usr/local/bin`, mise shims and `~/.local/bin`.
+- AI clients load their normal user configuration. EyrWSL carries no Omarchy AI launch aliases (`c`, `cx`, `cy`, `ic`, `ix`, `icx`); `hdw` sends full `claude`, `codex`, `opencode`, or `hermes` commands with only the selected continuation form. Its `cc`/`cx`/`oc`/`ha` arguments are not aliases or an isolated harness profile. ArcHy's stock shortcut flags apply only to those stock launches, not `hdw`.
 - Omarchy's mise shell handling is adopted verbatim: `mise activate bash` opens `init`, `set +h` closes `shell`, and the `mup` alias is carried as plain `mise up`, without Omarchy's `MISE_MINIMUM_RELEASE_AGE=0` prefix (see Mise). Omarchy also sources its PATH bootstrap from `/etc/profile.d` and PAM so login shells and SSH commands find the mise tools; here `envs` is the only source, so shells that skip `.bashrc` (`wsl.exe -e`, SSH commands) see the mise directories only when the system PATH already has them.
 - No `pacman` alias and no AUR helper. Omarchy routes updates through `omarchy-update`, which is Hyprland/desktop-bound and runs `mise up` after its package step; this repo uses plain `pacman -Syu` against official repos only, which carries the packaged mise, followed by `mup` for the mise-managed tools.
 
@@ -138,13 +138,11 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - Paranoid mode is on through the stowed `~/.config/mise/conf.d/eyrwsl.toml`. Omarchy runs mise with default trust and trusts `~/Work/.mise.toml` and every worktree automatically; here global configs stay implicitly trusted and every project-level config needs an explicit `mise trust`, prompted again when the file changes.
 - `mise` comes from the official `extra` repository instead of Omarchy's `mise-bin` package.
 - The four AI tools and Hermes's uv dependency go through mise. Omarchy's other mise-managed tools are omitted: the wrappers for `gh`, `crush`, `gemini`, `copilot`, `playwright`, `pi`, `omp`, `grok`, `ghui`, and `hunk` at the pin (`agy` replacing `gemini`, `hey`, and `ori` since), the global Node runtime, and the language runtimes `omarchy-install-dev-env` adds on request; `gh` comes from the official `github-cli` package.
-- Omarchy's `~/Work/.mise.toml` and global Node.js install (`mise-work.sh`) are omitted. Claude Code, Codex and OpenCode use prebuilt binaries; Hermes has its own Python 3.13 environment managed through uv/mise. Node.js belongs to optional EyrAgents verification and Hermes modern-TUI prerequisites, not EyrWSL's terminal baseline.
+- Omarchy's `~/Work/.mise.toml` and global Node.js install (`mise-work.sh`) are omitted. Claude Code, Codex and OpenCode use prebuilt binaries; Hermes has its own Python 3.13 environment managed through uv/mise. Node.js is optional for the Hermes modern TUI and is outside this terminal baseline.
 - `omarchy-update-mise` has no counterpart; `mup` is the update path, run by hand.
 
 ### OpenCode
 
-- Shared OpenCode runtime and TUI configuration remains owned by EyrAgents. Its `system` theme selection uses ANSI colors and terminal defaults, matching Omarchy's terminal-aware behavior without a custom palette in EyrWSL.
-- EyrAgents deploys its own `opencode` package without folding; nothing in EyrWSL touches `~/.config/opencode/`.
 
 ### Fastfetch
 
@@ -172,7 +170,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 ### WSL Bootstrap
 
 - `/etc/wsl.conf` carries the default user and keeps Windows interop enabled, which the clipboard integration requires.
-- The [setup guide](docs/setup.md) separates Windows/PowerShell, Arch root bootstrap, and normal-user setup. It covers stable WSL, official Arch installation and checksum-checked image fallback, Windows Terminal and fonts, preserved host settings, locale, no-reply identity, and preservation-first deployment/upgrades. [Operations](docs/operations.md) owns usage and verification; the README remains the overview. Optional EyrAgents is a separate deployment, and actual-host evidence stays pending in the maintenance ledger.
+- The [setup guide](docs/setup.md) separates Windows/PowerShell, Arch root bootstrap, and normal-user setup. It covers stable WSL, official Arch installation and checksum-checked image fallback, Windows Terminal and fonts, preserved host settings, locale, no-reply identity, and preservation-first deployment/upgrades. [Operations](docs/operations.md) owns usage and verification; the README remains the overview. Client configuration is independent, and actual-host evidence stays pending in the maintenance ledger.
 - The WSL baseline includes `inetutils` for the `hostname` host gate, `lua` for EyrWSL's fail-closed syntax verification, `tree-sitter-cli` for LazyVim, and `man-db`/`man-pages` for local documentation. The official `mise` package installs and updates the AI terminal tools through the stowed wrappers.
 - Yazi media helpers are optional official packages, not hidden baseline dependencies.
 
@@ -193,5 +191,5 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 
 The following do **not** belong in EyrWSL:
 
-- Shared AI agent runtime configuration (belongs in EyrAgents)
+- AI-client runtime configuration and agent workflow policy
 - Omarchy desktop customizations such as Hyprland bindings (belong in EyrArcHy)

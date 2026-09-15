@@ -1,12 +1,12 @@
 #!/bin/bash
 # Keep the reference clones the omasync skill compares against in step with
-# the family's manifests.
+# this repository's manifest and an explicitly selected host peer.
 #
 # references.txt at each family repository root lists the clones that
 # repository needs under QUARRY (default ~/Projects/quarry), one per line as
 # "<directory> <git URL>"; blank lines and # comments are ignored. This
-# repository's file is read first, then every sibling's ../*/references.txt,
-# and the union of those files defines the quarry:
+# repository's file is read first, then REFERENCE_PEER/references.txt when set.
+# Neighboring repositories are never discovered implicitly. The selected union:
 #   - a clone this repository lists and the quarry lacks is cloned
 #   - a clone only a sibling lists and the quarry lacks is noted, not cloned
 #   - every clone the union lists is updated: its origin is resolved through
@@ -50,8 +50,8 @@ problem() {
   fail=1
 }
 
-# Manifests: this repository's, then its siblings'. The union defines the
-# quarry; a name two manifests describe with different URLs is a conflict.
+# Manifests: this repository plus the explicitly selected host peer, if present.
+# A name the two manifests describe with different URLs is a conflict.
 declare -A want=() family=() listed_by=()
 read_manifest() { # file label
   local file=$1 label=$2 line name url extra
@@ -73,11 +73,13 @@ read_manifest() { # file label
   done <"$file"
 }
 read_manifest "$repo/$manifest" "$repo_label"
-for sibling in "${repo%/*}"/*/"$manifest"; do
-  [[ -f $sibling && ! $sibling -ef $repo/$manifest ]] || continue
-  sibling_dir=${sibling%/*}
-  read_manifest "$sibling" "${sibling_dir##*/}"
-done
+if [[ -n ${REFERENCE_PEER:-} ]]; then
+  sibling="$REFERENCE_PEER/$manifest"
+  if [[ -f $sibling && ! $sibling -ef $repo/$manifest ]]; then
+    sibling_dir=${sibling%/*}
+    read_manifest "$sibling" "${sibling_dir##*/}"
+  fi
+fi
 ((fail)) && exit 1
 
 github_slug() { # git url -> owner/repo, or nothing for a non-GitHub remote

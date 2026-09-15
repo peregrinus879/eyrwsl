@@ -1,7 +1,8 @@
 # Reference clones the omasync skill compares against, under ~/Projects/quarry.
-# One per line: <directory> <git URL>. The family union of every sibling's
-# references.txt defines the quarry: make refs creates missing entries listed
-# here, updates existing family references, and reports/keeps unlisted clones.
+# One per line: <directory> <git URL>. The updater reads this manifest and the
+# explicitly selected host peer (Make passes SIBLING through REFERENCE_PEER).
+# make refs creates missing entries listed here, updates existing selected
+# references, and reports/keeps unlisted clones.
 # Preview creation or remote changes before running; update a moved manifest URL
 # deliberately, preserving local work and refs.
 omarchy https://github.com/omacom/omarchy.git

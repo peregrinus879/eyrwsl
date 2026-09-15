@@ -16,7 +16,7 @@ Daily and All views cover Herdr, the four AI clients, Neovim/Neo-tree, Git revie
 
 One keybinding is a shortcut; a keymap is the collection. Both belong in this single guide. Its shared source and [maintenance instructions](workspace-guide-src/README.md) live under `docs/workspace-guide-src/`; `make workspace-guide` rebuilds the HTML, `make check` rejects stale output, and `make twins` compares the shared authoring files. Update both companion guides when their shared configuration changes.
 
-Guide reconciliation is part of every in-scope binding or command addition, change and removal. Follow [change-coupled maintenance](workspace-guide-src/README.md#change-coupled-maintenance), including inherited-default changes after application/plugin updates. `/omasync` owns host/default review; EyrAgents' `/eyrsync` owns AI-client review. The checks verify generated/twin consistency, not the accuracy of live keymaps.
+Guide reconciliation is part of every in-scope binding or command addition, change and removal. Follow [change-coupled maintenance](workspace-guide-src/README.md#change-coupled-maintenance), including inherited-default changes after application/plugin updates. `/omasync` owns host/default and launcher review. Client-internal controls are outside this guide. The checks verify generated/twin consistency, not the accuracy of live keymaps.
 
 ## Native Herdr
 
@@ -27,7 +27,7 @@ Open Herdr independently by running `herdr` in a normal-user Arch shell. In a sh
 - `oc` sends `opencode`; `-c` uses `opencode -c`.
 - `ha` sends `hermes`; `-c` uses `hermes -c`.
 
-Hermes continuation may restore its recorded cwd after launch. EyrAgents owns the Hermes configuration; `hdw` supplies no YOLO flag or separate profile.
+Hermes continuation may restore its recorded cwd after launch. Client configuration is independent; `hdw` supplies no YOLO flag or separate profile.
 
 `hdw` uses the current physical directory, not an inferred Git root. AI occupies the full-height left column, Neovim the top-right and a shell the bottom-right, with equal columns, equally stacked right panes and AI focus. The caller may be in a populated tab or an inactive workspace, but its pane identity and selected-tab context must be valid. Every call creates a separate workspace, even in the same directory; change directory in a generated bottom-right shell and call again to open the next workspace. Bare `hdw` prints usage; outside-Herdr or invalid-context calls refuse.
 
@@ -35,7 +35,7 @@ Existing workspace/tab names and layouts stay intact, apart from normal global w
 
 Cooperating calls are serialized. Caller identity, the pre-creation workspace inventory, the new root's opaque terminal identity, exact membership and complete geometry are checked before tool input. Cleanup may close only proven new split panes before input, never any workspace, tab, root or original caller. A newly created workspace/root always remains for inspection on failure; possible input or uncertain ownership preserves remaining state. Inspect the reported original/new recovery context before manual action. This is not an atomic multi-RPC transaction.
 
-The `cc`/`cx`/`oc`/`ha` selectors are arguments, not shell aliases. `hdw` sends full commands and still loads applicable EyrAgents settings; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
+The `cc`/`cx`/`oc`/`ha` selectors are arguments, not shell aliases. `hdw` sends full commands and uses normal client configuration; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
 
 ## GitHub Access
 
@@ -53,7 +53,7 @@ Expect the canonical HTTPS origin, intended repository/access level, and a branc
 
 After saving work, at a time H chooses, check `wsl --list --verbose` in **normal Windows PowerShell**. H can then terminate only the intended distribution with `wsl --terminate archlinux`, substituting its actual registered name if different. Reopen it through Windows Terminal and repeat the checks above without refreshing credentials. At the next H-chosen Windows reboot, sign in normally and repeat them from a fresh Arch WSL terminal. Confirm prompt absence explicitly; a manually repaired terminal is not persistence evidence. Launch new AI clients there and record actual versions, source IDs and outcomes in [maintenance](maintenance.md#deferred-work) and the [handoff](handoff.md).
 
-Authentication readiness is separate from EyrAgents' exact commit approval, exact Push selection, agent execution and verification. Codex retains its restrictions and hands publication to a separately launched network-capable primary with fresh approval. Credential access carries the account's permissions, not read-only isolation. A locked store, expired login or wrong account requires H-local recovery through the standard CLI/native UI. Neither TLS/host-trust weakening nor dumping tokens is a recovery step. Follow the setup command's host-local configuration target when refreshing Git helper settings after an update.
+Authentication establishes account access, not authorization for repository mutations. Credential access carries the account's permissions, not read-only isolation. A locked store, expired login or wrong account requires H-local recovery through the standard CLI/native UI. Neither TLS/host-trust weakening nor dumping tokens is a recovery step. Follow the setup command's host-local configuration target when refreshing Git helper settings after an update.
 
 ## Git Review
 
@@ -92,8 +92,7 @@ Complete these manual fresh-session checks:
 
 - Confirm the core symlinks and local Git identity exist: `test -L ~/.bashrc && test -L ~/.config/starship.toml && test -L ~/.config/nvim/lua/config/options.lua && test -f ~/.config/git/config.local`
 - Start a fresh shell and confirm Bash and Starship load without errors; EyrWSL must not supply `tdw`, `tdl`, `tdlm`, `tsl`, `hdl`, `hdlm`, `hsl`, `hds`, or aliases `h`/`t`. A remaining host/user definition needs ownership review, not blanket removal. `command -v herdr` and `type hdw` must still resolve; preserve native Herdr configuration/keymap.
-- Confirm `printenv OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` and `printenv OPENCODE_ENABLE_EXA` each print `1`.
-- Start a fresh shell and confirm `alias claude c cx cy ic ix icx` reports no alias for any of them: EyrWSL does not supply Omarchy AI shortcuts, and the full tool commands load applicable EyrAgents settings.
+- Start a fresh shell and confirm `alias claude c cx cy ic ix icx` reports no alias for any of them: EyrWSL does not supply Omarchy AI shortcuts, and the full tool commands use normal client configuration.
 - Open a disposable session with `herdr` and check the [Native Herdr](#native-herdr) layout, full agent/continuation commands, native names and AI focus. Repeated calls, including from a populated caller, a valid inactive source workspace and a generated bottom-right shell, must each create a new workspace; existing names/layouts must stay intact apart from global focus. Bare invocation shows usage; outside-Herdr and invalid-context calls refuse without server startup or attachment. Do not experiment in an existing working session.
 - On helper failure, inspect the original/new pane/tab/workspace context before manual cleanup. The new workspace/root must remain; only verified new split panes may be removed before possible input, never any workspace/tab/root/caller. Preserve uncertain state and older roots/recovery files. These multi-call operations are not server-side atomic transactions.
 - In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
@@ -104,7 +103,6 @@ Complete these manual fresh-session checks:
 - Check Git review from files in two repositories and from a selected Neo-tree repository folder while the editor was launched in their non-Git parent; `Space g d` and `Space g s` must target the selection without changing `:pwd`.
 - In Neovim, verify both `+` and `*` registers with disposable ASCII, Arabic/CJK, accented and supplementary-plane text through a Windows application, including multiline/CRLF, empty contents, and trailing newlines. Paste strips every CR, normalizing CRLF to LF; this is not byte-for-byte preservation. The provider uses PowerShell with explicit UTF-8 and no profile for both directions, not `clip.exe`. Do not inspect pre-existing clipboard content; mocks are not evidence that this Windows boundary passed.
 - If the vault is synced to this machine, open a vault note and confirm obsidian.nvim loads (`<leader>oo` opens the note switcher).
-- In OpenCode, run `/theme` and confirm `system` is selected so the TUI inherits Windows Terminal's Gruvbox ANSI palette.
 - Confirm Windows Terminal uses JetBrainsMono Nerd Font at size 9 and the Gruvbox color scheme after applying `windows-terminal/settings.json`.
 - Keep Windows Terminal `Alt+Enter` unbound (`"id": null`) so it passes through to the terminal application rather than toggling fullscreen. Omarchy's Herdr map uses this key too; tmux retirement does not call for a settings change or deployment.
 
@@ -130,7 +128,7 @@ A repo-root `Makefile` keeps the package list in one place and wraps the routine
 
 Every host-writing Make target checks host and deployed-clone ownership before mutation. Deployment goals are serialized within one Make invocation, including `make -j`; this is not rollback against I/O failure or independent concurrent deployments.
 
-Before running `make refs`, preview with `bash scripts/update-references.sh --dry-run` and approve any new clone or remote repointing separately. The preview can query GitHub but does not fetch or establish conflict-free upstream parity. Routine authorized refreshes remain the sync skill's work; atomic fetch does not make the whole family update transactional.
+Before running `make refs`, preview with `make refs-plan` and approve any new clone or remote repointing separately. The preview can query GitHub but does not fetch or establish conflict-free upstream parity. Routine authorized refreshes remain the sync skill's work; atomic fetch does not make the whole host-pair update transactional.
 
 `make refs` refuses ahead-only/divergent listed default branches instead of calling them current. Its atomic, non-forced fetch preserves existing local tags and annotations, imports new tags, and prunes only origin tracking branches. Checkout and merge use `--no-overwrite-ignore`, preserving ignored files in listed clones. Tag/file conflicts refuse that update and require separate review; do not force a tag replacement or delete local files to make it pass. Stale references are informational and require separate review of all refs, stashes, and ignored/untracked files before any manual removal.
 

@@ -35,7 +35,7 @@ TWIN_SPECS := nvim/.config/nvim/lua/plugins/obsidian.lua \
   docs/workspace-guide-src/template.html \
   docs/workspace-guide-src/README.md
 
-.PHONY: help require-host require-clone stow unstow dry-run restow lint check twins twins-pair verify test clean refs wt-diff wt-push workspace-guide
+.PHONY: help require-host require-clone stow unstow dry-run restow lint check twins twins-pair verify test clean refs refs-plan wt-diff wt-push workspace-guide
 
 # Deployment goals and their guards must never race, including `make -j clean restow`.
 .NOTPARALLEL:
@@ -54,6 +54,7 @@ help:
 	@echo "  test      Run the fixture suites in fake homes"
 	@echo "  clean     Guarded stow preparation: owned folds, dangling and exact retired links (scripts/prepare-stow.sh)"
 	@echo "  refs      Clone and fast-forward listed references to exact upstream parity; report and keep stale clones"
+	@echo "  refs-plan Preview reference maintenance for this repo and its selected host peer"
 	@echo "  wt-diff   Diff tracked Windows Terminal settings against the deployed file"
 	@echo "  wt-push   Back up changed settings and deploy the tracked Windows Terminal file"
 	@echo "  workspace-guide  Rebuild the offline workspace guide in docs/workspace-guide.html"
@@ -142,7 +143,10 @@ clean: require-clone
 # repoints moved GitHub remotes, fast-forwards listed clones to exact upstream
 # parity, and reports unlisted clones without deleting them.
 refs:
-	@bash scripts/update-references.sh
+	@REFERENCE_PEER="$$SIBLING" bash scripts/update-references.sh
+
+refs-plan:
+	@REFERENCE_PEER="$$SIBLING" bash scripts/update-references.sh --dry-run
 
 wt-diff:
 	scripts/wt-diff.sh
