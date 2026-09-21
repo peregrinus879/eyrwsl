@@ -29,13 +29,9 @@ TWIN_SPECS := nvim/.config/nvim/lua/plugins/obsidian.lua \
   tests/update-references.sh \
   tests/git-review.sh \
   tests/hdw.sh \
-  tests/fixtures/herdr \
-  docs/workspace-guide-src/build.py \
-  docs/workspace-guide-src/reference.json \
-  docs/workspace-guide-src/template.html \
-  docs/workspace-guide-src/README.md
+  tests/fixtures/herdr
 
-.PHONY: help require-host require-clone stow unstow dry-run restow lint check twins twins-pair verify test clean refs refs-plan wt-diff wt-push workspace-guide
+.PHONY: help require-host require-clone stow unstow dry-run restow lint check twins twins-pair verify test clean refs refs-plan wt-diff wt-push
 
 # Deployment goals and their guards must never race, including `make -j clean restow`.
 .NOTPARALLEL:
@@ -57,7 +53,6 @@ help:
 	@echo "  refs-plan Preview reference maintenance for this repo and its selected host peer"
 	@echo "  wt-diff   Diff tracked Windows Terminal settings against the deployed file"
 	@echo "  wt-push   Back up changed settings and deploy the tracked Windows Terminal file"
-	@echo "  workspace-guide  Rebuild the offline workspace guide in docs/workspace-guide.html"
 
 # Host-bound targets refuse elsewhere, and a managed endpoint that is a link
 # must resolve into this clone so a reference clone never redeploys the
@@ -89,7 +84,6 @@ lint:
 # Repository-only checks: every owned config validates in repo mode, then the
 # fixture suites run in fake homes. Needs no WSL host or stowed links.
 check:
-	python3 docs/workspace-guide-src/build.py --profile eyrwsl --check
 	@VERIFY_MODE=repo VERIFY_PACKAGES='$(PACKAGES)' bash scripts/verify.sh
 	@$(MAKE) --no-print-directory test
 	@echo "ok:   check"
@@ -153,6 +147,3 @@ wt-diff:
 
 wt-push: require-clone
 	scripts/wt-diff.sh --push
-
-workspace-guide:
-	python3 docs/workspace-guide-src/build.py --profile eyrwsl

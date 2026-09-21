@@ -34,6 +34,8 @@ The two host-dotfiles repositories share selected configuration and verification
 | [EyrArcHy](https://github.com/peregrinus879/eyrarchy) | Personal shell, desktop, and editor customizations for an existing Omarchy installation. |
 | [EyrWSL](https://github.com/peregrinus879/eyrwsl) | A self-contained Arch WSL terminal environment with Windows integration and mise-managed AI tools. |
 
+[EyrAgents](https://github.com/peregrinus879/eyragents) independently owns the shared AI harness and full workspace guide. The host repositories remain the configuration twins.
+
 EyrArcHy is for the Omarchy desktop and is not deployed on WSL.
 
 ## Setup
@@ -54,7 +56,7 @@ Open `herdr`, navigate to a project, then run `hdw ha` for a new Hermes/Neovim/s
 
 The [operations guide](docs/operations.md) covers workspaces, Git review and worktrees, synchronization helpers, updates, and verification.
 
-Open the [Workspace Guide](docs/workspace-guide.html) in a browser for searchable keys, commands, launch recipes and host notes across the whole workspace. It is a self-contained offline file; on GitHub, download the raw HTML first.
+Open the [EyrAgents Workspace Guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) for searchable host and AI-client keys, commands, launch recipes and workflows. The single offline file includes both host profiles; on GitHub, download the raw HTML first. [Operations](docs/operations.md#workspace-guide) gives the local opening command.
 
 [GitHub setup](docs/setup.md#github-access) uses the baseline GitHub CLI and HTTPS. [Operations](docs/operations.md#github-access) covers fresh-client and restart/reboot checks.
 
@@ -68,7 +70,7 @@ Open the [Workspace Guide](docs/workspace-guide.html) in a browser for searchabl
 | --- | --- |
 | Install, migrate, or recover the environment | [Setup](docs/setup.md) |
 | Use helpers, update tools, or verify changes | [Operations](docs/operations.md) |
-| Find workspace keys, commands and everyday workflows | [Offline workflow guide](docs/workspace-guide.html) |
+| Find workspace keys, commands and everyday workflows | [EyrAgents workspace guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) |
 | Understand the terminal baseline and Windows differences | [Deviations](DEVIATIONS.md) |
 | Find unresolved issues or remaining host work | [Maintenance ledger](docs/maintenance.md) |
 | Complete the current cross-host migration | [WSL handoff](docs/handoff.md) |

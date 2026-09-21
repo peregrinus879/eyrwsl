@@ -21,6 +21,8 @@ Omarchy is an opinionated Arch Linux distribution targeting a full desktop envir
 
 ## Reference Sources
 
+The [full workspace guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) is authored and built in EyrAgents so host and AI controls have one user-facing reference. EyrArcHy and EyrWSL own their host facts and implementation-twin contract; `/omasync` includes authorized guide reconciliation in EyrAgents. Each repository builds and deploys independently.
+
 - [omacom/omarchy](https://github.com/omacom/omarchy) - main repo for bash, native Herdr conventions, starship, git, fastfetch, btop, and editorconfig references; copied desktop launch recipes remain out of scope
 - [omacom/omarchy-pkgs](https://github.com/omacom/omarchy-pkgs) - package builds, including the Omarchy Neovim package
 - [mise](https://mise.jdx.dev/) and the [Arch `mise` package](https://archlinux.org/packages/extra/x86_64/mise/) - tool manager upstream and signed Arch package; its registry names the backend each AI tool installs from

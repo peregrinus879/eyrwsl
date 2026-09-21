@@ -6,17 +6,17 @@ Run Make targets from the repository root, on the host required by each target.
 
 ## Workspace Guide
 
-Open the self-contained [Workspace Guide](workspace-guide.html) in a browser. From Arch Bash, open its Windows path and choose a browser if prompted:
+Open the self-contained [EyrAgents Workspace Guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) in a browser and select **Arch WSL**. With the standard Projects layout, run from Arch Bash and choose a browser if prompted:
 
 ```bash
-explorer.exe "$(wslpath -w "$PWD/docs/workspace-guide.html")"
+explorer.exe "$(wslpath -w "$HOME/Projects/eyrie/eyragents/docs/workspace-guide.html")"
 ```
 
 Daily and All views cover Herdr, the four AI clients, Neovim/Neo-tree, Git review, vault notes, Bash tools and Yazi. The host profile selects outer-terminal controls and host-specific notes. Search, saved keys, copyable launcher commands and printing work offline; source links open online references when selected.
 
-One keybinding is a shortcut; a keymap is the collection. Both belong in this single guide. Its shared source and [maintenance instructions](workspace-guide-src/README.md) live under `docs/workspace-guide-src/`; `make workspace-guide` rebuilds the HTML, `make check` rejects stale output, and `make twins` compares the shared authoring files. Update both companion guides when their shared configuration changes.
+Adjust the path for a differently located EyrAgents clone, or download the raw HTML from GitHub. EyrAgents owns the guide's source and [maintenance instructions](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide-src/README.md); run `make workspace-guide` and `make check` there to rebuild and check the single output. Host `make twins` protects shared implementation files.
 
-Guide reconciliation is part of every in-scope binding or command addition, change and removal. Follow [change-coupled maintenance](workspace-guide-src/README.md#change-coupled-maintenance), including inherited-default changes after application/plugin updates. `/omasync` owns host/default and launcher review. Client-internal controls are outside this guide. The checks verify generated/twin consistency, not the accuracy of live keymaps.
+Guide reconciliation is part of every in-scope binding or command addition, change and removal, including inherited defaults after application/plugin updates. `/omasync` reviews host/default and launcher facts and reconciles EyrAgents' `host-reference.json` within authorized companion scope; `/eyrsync` owns AI-client facts. Record unavailable or unauthorized companion work in this repository's maintenance ledger. Build checks verify file consistency; source/help review and actual-host checks establish control accuracy.
 
 ## Native Herdr
 
