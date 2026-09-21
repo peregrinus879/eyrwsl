@@ -1,6 +1,43 @@
-# WSL Native Workflow Handoff
+# WSL Host Handoff
 
 Direction: Omarchy source work to the actual Arch WSL2 normal-user host after H's reviewed push and fast-forward pull. This file does not transfer deployment or package-removal approval.
+
+## Projects Layout Migration
+
+Requested 2026-09-21. The directories have been relocated on Omarchy host `gu605c`; this section owns the remaining WSL work. Read it on the next WSL session. H confirmed `eyrie/scrape` as the scratch destination and chose to preserve existing directory modes. Linux directory modes and this relocation do not change GitHub repository visibility.
+
+### Target Layout And Dependencies
+
+```text
+~/Projects/
+  eyrie/
+    dotfiles-arch/
+    eyragents/
+    eyrarchy/
+    eyrwsl/
+    omasecboot/
+    omarchy/             # from branchers
+    shahyn-control-lab/   # from mews, if present
+    shahynmc/            # from mews
+    scrape/              # complete former scratch tree
+  quarry/
+  vault/
+```
+
+This is the intended topology, not a claim that WSL has every listed repository. Keep its other existing `eyrie` repositories too. Use the EyrAgents companion that configures `~/Projects/eyrie/scrape` across Claude, Codex, OpenCode and Hermes, together with the EyrWSL changes carrying this section. Record the actual revisions and any local edits when receiving them. The frozen `dotfiles-arch` companion updates its migration/backup instructions and keeps the two Shahyn repositories and `scrape` excluded from auto-refresh.
+
+### Pending WSL Actions
+
+1. Verify the actual WSL host, user, HOME and deployed clones before changes. Inventory `eyrie`, `branchers`, `mews`, `scratch`, `quarry` and `vault` by names and metadata, without reading protected stores or session histories. Record repository HEADs (or unborn branches), index/worktree status, ignored/untracked preservation needs, worktrees, root modes and symlinks. Preserve local work; do not recreate repositories from clones or Git exports. On `gu605c`, Control Lab and `scratch/test` were unborn repositories with untracked work, so absence of a commit is not evidence of an empty tree.
+2. Coordinate terminals, editors and development servers using the old paths. Preflight every source/destination pair; preserve and resolve collisions rather than merging or overwriting trees. Move each existing repository directly beneath `eyrie`, retaining its basename. The known moves are `branchers/omarchy` to `eyrie/omarchy`, `mews/shahynmc` to `eyrie/shahynmc`, and `mews/shahyn-control-lab` to `eyrie/shahyn-control-lab`. Review additional WSL-only entries individually. Linked worktrees or external Git-directory pointers need their native Git relocation procedure rather than an ordinary directory rename.
+3. Move the entire `~/Projects/scratch` directory to `~/Projects/eyrie/scrape`, including hidden, ignored, non-repository and nested-repository contents. Preserve modes. Prefer same-filesystem, no-copy, no-clobber renames; stop for a separate preservation plan if the filesystems differ. Do not create the destination before moving an existing source. If already migrated, verify it instead; if both paths exist, resolve the collision with H. Remove only empty `mews`/`branchers` parents with `rmdir`. Keep `quarry` and `vault` in place. Persistent `scrape` data is user work, not disposable execution scratch.
+4. Check affected non-secret configuration and symlink targets using explicit scopes. In the ignored `eyrie/shahynmc/.claude/settings.local.json`, relocate an existing scratch Read allowance to the exact new root, preserving its scope and the other settings. This local edit is not carried by pull. The maintained EyrAgents rules replace the old special grant, without granting all of `eyrie`. Keep normal protected-path and native permission restrictions. Reopen active tools from their new directories; preserve client session/history stores.
+5. From the intended EyrAgents clone, run `make lint check`, then its guarded `make restow verify`. Use its opaque Codex/Hermes reconcilers, not raw host configuration reads. Restart OpenCode and Hermes and begin fresh affected-client sessions. Follow [persistent-scratch acceptance](../../eyragents/docs/operations.md#persistent-scratch), including installed Hermes runtime/metadata checks and bounded canaries. Check new-root writes in owned fixtures, sibling/old-root ordinary handling and retained protected-path refusals. Record Codex startup or other native limitations separately; old-path or Omarchy evidence does not attest WSL.
+6. Confirm the same repository identities, branches, staged/untracked work, complete scratch contents and directory modes; verify worktree paths and relevant symlinks. Search maintained source/configuration for stale operational references, classifying migration-source and negative-test references separately. Run relevant application checks from the new roots using existing dependencies. Run `make lint check twins` in EyrWSL; its broader host deployment remains governed by the existing host pass below.
+
+### Acceptance And Close-Out
+
+Record actual WSL layout, source revisions, preservation checks, EyrAgents deployment, fresh-client results and blockers. Remove this section and its startup/ledger pointers only after WSL relocation and acceptance are complete. Keep the native-workflow, GitHub and other pending host work below until their own checks finish. Git publication and pulling this note are separate from the physical migration.
 
 ## Baseline And Status
 
@@ -28,7 +65,7 @@ Hermes acceptance also remains: follow the actual-WSL pass in [maintenance](main
 After pulling the intended EyrWSL changes, record the actual full source IDs. Verify host-local GitHub access separately from any later repository mutation approval. This handoff transfers no approval.
 
 1. Follow [GitHub login and HTTPS setup](setup.md#github-login-and-https) in normal-user Arch WSL, using the existing baseline `github-cli` package. H completes native login and checks the actual credential-storage choice locally.
-2. Keep helper settings in the included untracked `config.local`; confirm the setup did not write into the stowed Git source. Complete the [all-repository HTTPS migration](setup.md#all-repositories-under-projects) on this WSL host, covering every actual Git repository below `~/Projects`, not just the two host-dotfile clones. Prioritize `~/Projects/eyrie/omasecboot` and `~/Projects/mews/shahynmc`; include other `eyrie`, `mews`, `branchers`, `quarry`, `repos` and additional project subtrees. Report absent priority clones rather than creating them automatically.
+2. Keep helper settings in the included untracked `config.local`; confirm the setup did not write into the stowed Git source. Complete the [all-repository HTTPS migration](setup.md#all-repositories-under-projects) on this WSL host, covering every actual Git repository below `~/Projects`, not just the two host-dotfile clones. Prioritize `~/Projects/eyrie/omasecboot` and `~/Projects/eyrie/shahynmc`; include other `eyrie`, `quarry`, `repos` and additional project subtrees, plus legacy `mews`/`branchers`/`scratch` locations still present before layout migration. Report absent priority clones rather than creating them automatically.
 3. Inventory every remote, including `origin`, fork `upstream` remotes and explicit push URLs. Convert GitHub SSH endpoints to their equivalent HTTPS destinations, preserving owner/repository, remote roles, URL multiplicity/order, branch tracking and push defaults. Deduplicate linked worktrees by common Git directory. Preserve already-HTTPS and local-path destinations; repositories without remotes stay that way. Resolve SSH aliases, other hosts, includes or URL rewrites individually rather than guessing a destination or installing a blanket rewrite. Record any unresolved endpoint explicitly. HTTPS applies to writable forks and reference clones alike.
 4. Recheck both effective fetch and push URLs across the complete inventory and run bounded read-only access checks for changed destinations. The local remote configuration is not committed or carried by pull: Omarchy's completed conversion does not change this WSL host. Confirm the private `shahynmc` repository remains private and its HTTPS ref lookup authenticates through the host helper. Record the actual repositories covered, conversions, already-HTTPS/no-remote cases and blockers without credentials.
 5. Complete [fresh-client, targeted WSL-restart and Windows-reboot checks](operations.md#github-access) without routine reauthentication. Record prompt absence explicitly. Public branch refs alone do not establish authenticated writes; the next independently approved publication supplies that evidence.

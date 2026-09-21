@@ -589,7 +589,7 @@ Prioritize these existing canonical clones, verifying their current destinations
 | Repository | Expected canonical HTTPS origin |
 | --- | --- |
 | `~/Projects/eyrie/omasecboot` | `https://github.com/peregrinus879/omasecboot.git` |
-| `~/Projects/mews/shahynmc` | `https://github.com/peregrinus879/shahynmc.git` |
+| `~/Projects/eyrie/shahynmc` | `https://github.com/peregrinus879/shahynmc.git` |
 
 Also cover every other discovered repository, including the harness/dotfiles, personal Omarchy fork and frozen `dotfiles-arch` clone when present. Preserve a fork's actual owner and its separate upstream. This is a transport migration, not repository relocation, visibility change, branch migration or a refresh of reference clones.
 
