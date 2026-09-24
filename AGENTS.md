@@ -4,7 +4,7 @@ Self-contained Arch WSL dotfiles adapted from [Omarchy](https://github.com/omaco
 
 ## Load Map
 
-- Claude Code loads this file through the root `CLAUDE.md` `@AGENTS.md` import; skills load on invocation only.
+- Claude Code (2.1.277 or later) and OpenCode read this file natively as the project's `AGENTS.md`; the repository has no `CLAUDE.md`, which would take precedence in Claude Code. Skills load on invocation only.
 - The `Makefile` is the single source of the package list (`scripts/verify.sh` and `scripts/prepare-stow.sh` consume it); `references.txt` lists this repository's reference clones. Reference maintenance can include the explicitly selected EyrArcHy peer, never arbitrary neighboring repositories. `README.md` is the overview; `docs/setup.md` owns installation/recovery and `docs/operations.md` owns usage, verification, and routine maintenance. `DEVIATIONS.md` owns architectural boundaries and intentional differences; script headers own local constraints. Link to each owner rather than repeating its procedures in the README.
 - `docs/maintenance.md` owns unresolved decisions, deferred work, active limitations, and dated revalidation evidence; read it before package, WSL, or Windows Terminal changes, `/omasync`, or deferred work. Prose describes current behavior; Git history owns provenance.
 - On the next WSL session, read [the pending Projects layout migration](docs/handoff.md#projects-layout-migration) before working with project paths or deploying EyrAgents, and [the Codex and Hermes retirement](docs/handoff.md#codex-and-hermes-retirement) before AI-tool or package work. Their physical moves, uninstalls and acceptance remain host-local work.
