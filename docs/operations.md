@@ -12,7 +12,7 @@ Open the self-contained [EyrAgents Workspace Guide](https://github.com/peregrinu
 explorer.exe "$(wslpath -w "$HOME/Projects/eyrie/eyragents/docs/workspace-guide.html")"
 ```
 
-Daily and All views cover Herdr, the four AI clients, Neovim/Neo-tree, Git review, vault notes, Bash tools and Yazi. The host profile selects outer-terminal controls and host-specific notes. Search, saved keys, copyable launcher commands and printing work offline; source links open online references when selected.
+Daily and All views cover Herdr, the AI clients, Neovim/Neo-tree, Git review, vault notes, Bash tools and Yazi. The host profile selects outer-terminal controls and host-specific notes. Search, saved keys, copyable launcher commands and printing work offline; source links open online references when selected.
 
 Adjust the path for a differently located EyrAgents clone, or download the raw HTML from GitHub. EyrAgents owns the guide's source and [maintenance instructions](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide-src/README.md); run `make workspace-guide` and `make check` there to rebuild and check the single output. Host `make twins` protects shared implementation files.
 
@@ -20,14 +20,12 @@ Guide reconciliation is part of every in-scope binding or command addition, chan
 
 ## Native Herdr
 
-Open Herdr independently by running `herdr` in a normal-user Arch shell. In a shell inside that session, navigate to the desired directory, then run `hdw <cc|cx|oc|ha> [-c]` to create and focus a new workspace:
+Open Herdr independently by running `herdr` in a normal-user Arch shell. In a shell inside that session, navigate to the desired directory, then run `hdw <cc|oc> [-c]` to create and focus a new workspace:
 
 - `cc` sends `claude`; `-c` uses `claude -c`.
-- `cx` sends `codex`; `-c` uses `codex resume --last`.
 - `oc` sends `opencode`; `-c` uses `opencode -c`.
-- `ha` sends `hermes`; `-c` uses `hermes -c`.
 
-Hermes continuation may restore its recorded cwd after launch. Client configuration is independent; `hdw` supplies no YOLO flag or separate profile.
+Client configuration is independent; `hdw` supplies no YOLO flag or separate profile.
 
 Claude Code continuation follows Claude Code's own session ownership. A session sent to the background with `/bg`, or with `Move to background and exit` in the exit dialog shown while background tasks run, continues under Claude Code's daemon, independent of Herdr windows and the Herdr server. While it runs, `claude -c` refuses with `Your most recent conversation is running in the background (session <uuid>)`; the short id is the first eight characters, and `claude agents` lists them. In the root pane `hdw` opened, `claude attach <id>` reopens the session with its background tasks intact. `claude stop <id>` followed by `claude -c` continues the same session in the foreground and ends its background tasks.
 
@@ -37,7 +35,7 @@ Existing workspace/tab names and layouts stay intact, apart from normal global w
 
 Cooperating calls are serialized. Caller identity, the pre-creation workspace inventory, the new root's opaque terminal identity, exact membership and complete geometry are checked before tool input. Cleanup may close only proven new split panes before input, never any workspace, tab, root or original caller. A newly created workspace/root always remains for inspection on failure; possible input or uncertain ownership preserves remaining state. Inspect the reported original/new recovery context before manual action. This is not an atomic multi-RPC transaction.
 
-The `cc`/`cx`/`oc`/`ha` selectors are arguments, not shell aliases. `hdw` sends full commands and uses normal client configuration; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
+The `cc`/`oc` selectors are arguments, not shell aliases. `hdw` sends full commands and uses normal client configuration; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
 
 ## GitHub Access
 
@@ -88,7 +86,7 @@ The rsync fixture uses fake local monitor/transfer commands, not SSH or producti
 After stowing or changing owned packages:
 
 - Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures). GitHub Actions runs them on pushes to `main` and pull requests, plus an exact committed twin-pair check against EyrArcHy's fetched default branch.
-- Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: the active WSL2/interop host guard first, then `lint`, `check`, and `twins`, followed by `scripts/verify.sh` in `full` mode (command baseline, the four AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
+- Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: the active WSL2/interop host guard first, then `lint`, `check`, and `twins`, followed by `scripts/verify.sh` in `full` mode (command baseline, the two AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
 
 Complete these manual fresh-session checks:
 
@@ -99,7 +97,7 @@ Complete these manual fresh-session checks:
 - On helper failure, inspect the original/new pane/tab/workspace context before manual cleanup. The new workspace/root must remain; only verified new split panes may be removed before possible input, never any workspace/tab/root/caller. Preserve uncertain state and older roots/recovery files. These multi-call operations are not server-side atomic transactions.
 - In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
 - With disposable local source/destination directories, start `rsw <source> <destination>`, note its PID/log path, and confirm changes during a transfer eventually arrive. Readiness is not sync success: inspect logs for transfer/monitor failures and retries. Reconciliation is checked between transfers, 60 seconds after the last successful completion. Monitor death stops the watcher after the current transfer returns and requires inspection/restart; a stalled transfer can delay this indefinitely. `lsw` and `dsw` manage only watchers started by this implementation; do not assume an older watcher stopped. No `--delete` is used, so destination-only files remain.
-- Confirm `mise ls claude codex opencode pipx:hermes-agent uv` lists an installed version of each tool, and `command -v claude codex opencode hermes` resolves every one under `~/.local/share/mise` (interactive shells, through `mise activate`) or to its `~/.local/bin` wrapper; `make verify` fails when a tool is missing from mise or resolves elsewhere.
+- Confirm `mise ls claude opencode` lists an installed version of each tool, and `command -v claude opencode` resolves each one under `~/.local/share/mise` (interactive shells, through `mise activate`) or to its `~/.local/bin` wrapper; `make verify` fails when a tool is missing from mise or resolves elsewhere.
 - Confirm `mise settings get paranoid` prints `true` and `mise settings get minimum_release_age` reports that the setting is not set, so the 24-hour default applies; `make verify` checks paranoid mode in full mode.
 - Run `nvim` once and confirm plugins install successfully and Gruvbox loads.
 - Check Git review from files in two repositories and from a selected Neo-tree repository folder while the editor was launched in their non-Git parent; `Space g d` and `Space g s` must target the selection without changing `:pwd`.
@@ -136,7 +134,7 @@ Before running `make refs`, preview with `make refs-plan` and approve any new cl
 
 Direct `scripts/wt-diff.sh --push` also checks host/clone ownership before discovering or reading the Windows destination. The diff-only mode remains read-only; the full-file replacement still requires explicit review as described in [Setup](setup.md#12-windows-terminal).
 
-Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code, Codex, OpenCode, and Hermes Agent current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
+Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code and OpenCode current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
 
 `nvim/.config/nvim/lazy-lock.json` is generated but tracked. Update it only through an intentional Lazy sync, review the pinned revision changes, verify a clean headless bootstrap, and commit the lockfile with the plugin-spec change that required it.
 

@@ -142,7 +142,7 @@ chmod a-x "$TMP/wrapper-not-executable/repo/mise/.local/bin/claude"
 expect_failure "non-executable mise wrapper" run_verify "$TMP/wrapper-not-executable" repo
 
 clone_baseline wrapper-wrong-tool
-sed -i 's/"codex"/"claude"/g' "$TMP/wrapper-wrong-tool/repo/mise/.local/bin/codex"
+sed -i 's/"opencode"/"claude"/g' "$TMP/wrapper-wrong-tool/repo/mise/.local/bin/opencode"
 expect_failure "mise wrapper naming another tool" run_verify "$TMP/wrapper-wrong-tool" repo
 
 clone_baseline wrapper-no-cooldown

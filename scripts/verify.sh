@@ -96,9 +96,9 @@ ok "verifier tools are available"
 
 if [[ $mode == full ]]; then
   baseline_tools=(
-    7z bat btop claude codex curl eza fd file fzf gcc gh gum herdr hermes hostname inotifywait
+    7z bat btop claude curl eza fd file fzf gcc gh gum herdr hostname inotifywait
     lazygit less lua make man mise nvim pgrep opencode rg rsync shellcheck ssh starship stow sudo
-    tree-sitter unzip uv which yazi zoxide
+    tree-sitter unzip which yazi zoxide
   )
   for tool in "${baseline_tools[@]}"; do
     command -v "$tool" >/dev/null || {
@@ -110,7 +110,7 @@ if [[ $mode == full ]]; then
   # The AI tools are mise-managed: each must be installed (its wrapper does
   # that on first run) and must resolve through the stowed wrapper or the mise
   # install directories, never through a leftover package or installer.
-  for tool in claude codex opencode; do
+  for tool in claude opencode; do
     resolved=$(command -v "$tool")
     if ! mise where "$tool" >/dev/null 2>&1; then
       problem "mise-managed tool is not installed: $tool (run it once so its wrapper installs it)"
@@ -120,7 +120,6 @@ if [[ $mode == full ]]; then
       problem "$tool resolves outside mise: $resolved"
     fi
   done
-  bash "$repo/scripts/verify-hermes.sh" || problem "Hermes installation or update configuration is not verified"
   if [[ $(mise settings get paranoid 2>/dev/null) == true ]]; then
     ok "mise runs in paranoid mode"
   else
@@ -221,17 +220,6 @@ done < <(find "$repo/bash" "$repo/mise" -type f \( -name '.bashrc' -o -path '*/.
 for wrapper in "$repo"/mise/.local/bin/*; do
   tool=${wrapper##*/}
   content=$(<"$wrapper")
-  if [[ $tool == hermes ]]; then
-    if [[ -x $wrapper && $content != *MISE_MINIMUM_RELEASE_AGE* && $content != *--force* &&
-      $content == *'uvx_args="--python 3.13"'* && $content == *'pipx_args="--python 3.13"'* &&
-      $content == *'mise use -g --quiet --fuzzy uv'* &&
-      $content == *'exec mise x '\''pipx:hermes-agent[extras=all]'\'' -- hermes "$@"'* ]]; then
-      ok "mise/.local/bin/hermes preserves its interpreter options and release cooldown"
-    else
-      problem "Hermes mise wrapper lost its interpreter or installation contract"
-    fi
-    continue
-  fi
   if [[ -x $wrapper && $content != *MISE_MINIMUM_RELEASE_AGE* ]] &&
     [[ $content == *"mise use -g --quiet \"$tool\""*"exec mise x \"$tool\" -- \"$tool\" \"\$@\""* ]]; then
     ok "mise/.local/bin/$tool is an executable mise wrapper that keeps the release cooldown"

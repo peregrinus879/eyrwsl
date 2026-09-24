@@ -14,9 +14,7 @@ unset HDW_AREA HDW_GAPS HDW_BORDERS HDW_LAYOUT_PATCH HDW_POPULATED
 mkdir -p "$HOME" "$TMP/bin" "$TMP/empty-bin" "$HDW_CWD" "$TMP/runtime" "$TMP/project/.git"
 printf '#!/bin/bash\nexit 99\n' >"$TMP/bin/claude"
 chmod +x "$TMP/bin/claude"
-ln -s claude "$TMP/bin/codex"
 ln -s claude "$TMP/bin/opencode"
-ln -s claude "$TMP/bin/hermes"
 ln -s "$HDW_CWD" "$TMP/logical"
 export PATH="$TMP/bin:$PATH"
 herdr() { python3 "$ROOT/tests/fixtures/herdr" "$@"; }
@@ -83,7 +81,7 @@ bad_geometry() {
 geometry_negative=0 geometry_positive=0
 
 # Numeric defaults, prior agent labels and arbitrary manual labels all survive.
-for label in 1 claude codex opencode 'review: keep me'; do
+for label in 1 claude opencode 'review: keep me'; do
   HDW_LABEL=$label reset_fake
   launch cc || fail "label $label refused"
   preserved
@@ -111,11 +109,11 @@ launch cc || fail 'initial workspace for shell continuation'
 python3 "$ROOT/tests/fixtures/herdr" --focus w2:p3
 assert '.panes["w2:p3"].focused and .focused_panes["w2:t1"] == "w2:p3"' 'shell UI selection failed'
 jq '{workspaces, tabs, panes, trees, focused_panes, runs}' "$HDW_FIXTURE_STATE" >"$TMP/native.before"
-HERDR_WORKSPACE_ID=w2 HERDR_TAB_ID=w2:t1 HERDR_PANE_ID=w2:p3 launch cx -c || fail 'generated shell caller refused'
+HERDR_WORKSPACE_ID=w2 HERDR_TAB_ID=w2:t1 HERDR_PANE_ID=w2:p3 launch oc -c || fail 'generated shell caller refused'
 preserved
 assert '.created == ["w2","w3"] and .focused_panes["w2:t1"] == "w2:p3" and
   (.panes["w2:p3"].focused | not) and .panes["w3:p1"].focused and
-  .runs[2:] == [["pane","run","w3:p2","true ."],["pane","run","w3:p1","codex resume --last"]]' 'generated shell context/layout/input changed'
+  .runs[2:] == [["pane","run","w3:p2","true ."],["pane","run","w3:p1","opencode -c"]]' 'generated shell context/layout/input changed'
 
 # Inactive does not mean exempt from identity or focus-projection validation.
 for rpc in 'tab get' 'pane list' 'pane get'; do
@@ -155,7 +153,7 @@ for failure in create cleanup cleanup-lost input; do
 done
 
 HDW_POPULATED=1 reset_fake
-launch cx || fail 'populated caller refused'
+launch oc || fail 'populated caller refused'
 preserved
 assert '.tabs["w1:t7"].pane_count == 3 and .created == ["w2"]' 'populated caller changed'
 reset_fake
@@ -164,16 +162,14 @@ mkdir -p "$TMP/other project"
 preserved
 assert '.panes["w1:p1"].cwd != .panes["w2:p1"].cwd and
   ([.panes[] | select(.workspace_id == "w2") | .cwd] | unique | length) == 1' 'caller cwd overrode physical cwd'
-for agent in cc cx oc ha; do
+for agent in cc oc; do
   for continuation in plain continue; do
     reset_fake
     args=("$agent")
     [[ $continuation == plain ]] || args+=(-c)
     case "$agent:$continuation" in
       cc:plain) expected=claude ;; cc:continue) expected='claude -c' ;;
-      cx:plain) expected=codex ;; cx:continue) expected='codex resume --last' ;;
       oc:plain) expected=opencode ;; oc:continue) expected='opencode -c' ;;
-      ha:plain) expected=hermes ;; ha:continue) expected='hermes -c' ;;
     esac
     launch "${args[@]}" || fail "$agent $continuation"
     jq -e --arg command "$expected" '.runs[1][3] == $command' "$HDW_FIXTURE_STATE" >/dev/null || fail 'agent command changed'
@@ -183,9 +179,6 @@ done
 reset_fake
 (unset EDITOR; launch -c cc) || fail 'default editor/flag order'
 assert '.runs[0][3] == "nvim ." and .runs[1][3] == "claude -c"' 'default editor/flag order'
-reset_fake
-launch -c ha || fail 'Hermes continue flag order'
-assert '.runs[1][3] == "hermes -c"' 'Hermes continue command'
 
 # Outer rectangles include borders, but borderless gaps remove one trailing
 # cell only when the first-child dimension exceeds one. Odd halves round up.
@@ -232,7 +225,7 @@ for patch in \
 done
 [[ $geometry_negative == 166 && $geometry_positive == 20 ]] || fail 'geometry coverage changed'
 
-for args in '' '-c' 'cc oc' 'ha cc' 'nope' 'cc --help'; do
+for args in '' '-c' 'cc oc' 'oc cc' 'nope' 'cc --help'; do
   reset_fake
   # shellcheck disable=SC2086 # Deliberate invalid argument vectors.
   refuse $args
@@ -253,7 +246,7 @@ for ids in 'w2 w2:t7 w2:p1' 'w1 w1:t9 w1:p1' 'w1 w1:t7 w1:p9'; do
   HERDR_WORKSPACE_ID=$w HERDR_TAB_ID=$t HERDR_PANE_ID=$p refuse cc
   no_writes
 done
-for agent in cc cx oc ha; do
+for agent in cc oc; do
   reset_fake
   PATH="$TMP/empty-bin" refuse "$agent"
   grep -q 'required agent' "$TMP/error" || fail 'missing binary not explained'
@@ -373,7 +366,7 @@ assert '(.runs | length) == 4 and .counts["pane split"] == 4 and .created == ["w
   .focused_panes["w1:t7"] == "w1:p1" and .focused_panes["w2:t1"] == "w2:p1"' 'concurrent calls did not create independent workspaces'
 
 HDW_WORKSPACE=wA reset_fake
-HERDR_WORKSPACE_ID=wA HERDR_TAB_ID=wA:t7 HERDR_PANE_ID=wA:p1 launch cx -c || fail 'base-32 IDs rejected'
-assert '.panes["wA:p1"] != null and .runs[1][3] == "codex resume --last"' 'base-32 IDs not exercised'
+HERDR_WORKSPACE_ID=wA HERDR_TAB_ID=wA:t7 HERDR_PANE_ID=wA:p1 launch cc -c || fail 'base-32 IDs rejected'
+assert '.panes["wA:p1"] != null and .runs[1][3] == "claude -c"' 'base-32 IDs not exercised'
 preserved
 printf 'ok:   hdw new workspaces, populated/inactive/repeated/generated-shell callers, global focus projections, cwd, agents, identity, earlier-workspace preservation, lost cleanup, concurrency; geometry %s negative/%s positive\n' "$geometry_negative" "$geometry_positive"

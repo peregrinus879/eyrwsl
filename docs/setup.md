@@ -222,7 +222,7 @@ sudo pacman -Syu --needed 7zip bash-completion bat btop curl diffutils eza fastf
 
 All 42 packages in this command come from official Arch repositories; their normal dependencies are installed automatically. `--needed` skips already-current packages, while `-Syu` completes a full system upgrade. Read Pacman's transaction and any provider/replacement prompts before accepting. [Partial upgrades are unsupported](https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported): do not replace this with `pacman -Sy` followed by selective installs.
 
-The baseline stays terminal-only: `inetutils` supplies `hostname`, `lua` supplies the Lua syntax verifier, `tree-sitter-cli` supports LazyVim, `python` supports repository checks and user-owned vault scripts, `man-db`/`man-pages` supply local documentation, and 7-Zip supports Yazi archives. No desktop `xdg-utils`, Linux font package, AUR package/helper, or Node runtime is added here. Node.js is not required by the three prebuilt AI binaries. Hermes uses private Python; its modern TUI additionally requires Node.
+The baseline stays terminal-only: `inetutils` supplies `hostname`, `lua` supplies the Lua syntax verifier, `tree-sitter-cli` supports LazyVim, `python` supports repository checks and user-owned vault scripts, `man-db`/`man-pages` supply local documentation, and 7-Zip supports Yazi archives. No desktop `xdg-utils`, Linux font package, AUR package/helper, or Node runtime is added here. Node.js is not required by the prebuilt Claude Code and OpenCode binaries.
 
 Verify the package list in **Arch Bash, normal Linux user**. Success prints nothing and returns to the prompt; every printed package name is an unmet dependency to resolve:
 
@@ -257,7 +257,7 @@ curl -fsSL https://herdr.dev/install.sh | sh
 
 Expect installation under `~/.local/bin/herdr`. A warning that this directory is not yet on `PATH` is expected before EyrWSL is stowed; the fresh-shell check below confirms it later. Package ownership remains Pacman-first: recheck before a future standalone reinstall, and review any ownership migration rather than installing one copy over another.
 
-Claude Code, Codex, OpenCode, and Hermes Agent are installed later by EyrWSL's mise wrappers. **Fresh installs should not also install their Pacman/native/npm versions.** Existing installations use the [migration guidance](#existing-installations), not blanket removal commands. Authentication and subscriptions are separate from binary installation.
+Claude Code and OpenCode are installed later by EyrWSL's mise wrappers. **Fresh installs should not also install their Pacman/native/npm versions.** Existing installations use the [migration guidance](#existing-installations), not blanket removal commands. Authentication and subscriptions are separate from binary installation.
 
 ### 5. Clone
 
@@ -380,9 +380,7 @@ In **Arch Bash, normal Linux user, from your home directory in a fresh tab**, ex
 ```bash
 cd ~
 ~/.local/bin/claude --version
-~/.local/bin/codex --version
 ~/.local/bin/opencode --version
-~/.local/bin/hermes --version
 ```
 
 Expect a download on first use followed by each tool's version. The wrappers run `mise use -g`, install under `~/.local/share/mise`, and record the tool's `latest` selection in host-local `~/.config/mise/config.toml`. Do not run them with `sudo` or place that generated config in a Stow package. They keep mise's default 24-hour release cooldown; `mup` (`mise up`) keeps it too.
@@ -390,15 +388,11 @@ Expect a download on first use followed by each tool's version. The wrappers run
 In a **fresh Arch Bash, normal Linux user**, check installation and resolution:
 
 ```bash
-mise ls claude codex opencode pipx:hermes-agent uv
-command -v claude codex opencode hermes
+mise ls claude opencode
+command -v claude opencode
 ```
 
-**Checkpoint:** mise lists an installed version of all four tools, and each command resolves under `~/.local/share/mise` or to its `~/.local/bin` wrapper, not an old Pacman/native/Windows install. Full EyrWSL verification requires these binaries independently of optional client configuration; sign-in is needed only when using each provider.
-
-### Hermes Installation And Updates
-
-Hermes's stowed wrapper installs mise-managed uv first, then `pipx:hermes-agent` with `extras=all` and persistent `uvx_args`/`pipx_args` selecting Python 3.13. It follows Omarchy's PyPI channel, currently Hermes 0.19.0, while retaining EyrWSL's release cooldown. Later `mup` runs preserve the interpreter options even when shell activation bypasses the wrapper. No global Python is installed for Hermes. An existing wrong-Python environment refuses rather than being force-reinstalled. `make verify` checks ownership, the interpreter and persisted options without installing or launching Hermes. Complete `hermes model` interactively for authentication; use `mup` rather than Hermes's Git-checkout updater. The native TUI's Node dependency is optional; bare `hermes` honors the user's interface choice.
+**Checkpoint:** mise lists an installed version of both tools, and each command resolves under `~/.local/share/mise` or to its `~/.local/bin` wrapper, not an old Pacman/native/Windows install. Full EyrWSL verification requires these binaries independently of optional client configuration; sign-in is needed only when using each provider.
 
 ### GitHub Access
 
@@ -414,10 +408,7 @@ Launch the tools **one at a time** in **Arch Bash, normal Linux user**, exiting 
 
 ```bash
 claude
-codex
 opencode
-hermes model
-hermes
 ```
 
 Follow each provider's current interactive sign-in flow. If it prints a browser URL instead of opening Windows' browser, open that URL yourself on Windows; the terminal-only baseline intentionally omits `xdg-utils`. Keep passwords, tokens, one-time codes, and auth files out of the repository and assistant reports. Existing sign-in state should remain in place through a launcher migration. Authentication failures do not indicate a dotfile deployment failure; resolve account access before testing workspace helpers.
@@ -503,13 +494,13 @@ git pull --ff-only
 This updates live Stow sources immediately, even before restowing. A fast-forward refusal needs review, not a forced reset. Recheck the updated setup guide and ledger, install any missing baseline packages using step 4's full-upgrade command, then inspect existing AI launchers in **Arch Bash, normal Linux user**:
 
 ```bash
-type -a claude codex opencode hermes
-pacman -Q openai-codex opencode
+type -a claude opencode
+pacman -Q opencode
 ```
 
 Missing commands/packages are legitimate results for a host that never installed them. If an old executable shadows mise, determine its exact owner first: `pacman -Qo /absolute/path/to/executable` in this same Bash shell, replacing the path with the one reported by `type`. Have Pacman remove only a confirmed obsolete package, reviewing the transaction before accepting; never manually delete a file Pacman owns. Do not run a blanket `pacman -Rns` list copied from a different host.
 
-For a confirmed user-level standalone launcher at an EyrWSL-owned path, preserve that **specific launcher** under an unused backup name outside the repository before linking the wrapper. Keep its versions store until the replacement is verified. Do not delete `~/.claude`, `~/.codex`, OpenCode's config/data, mise state, SSH keys, or credential files. Native-installer cleanup and auth migration are separate decisions, not prerequisites to replacing a launcher. Follow the old installer's current official uninstall documentation only if removal is actually needed, checking its data impact first.
+For a confirmed user-level standalone launcher at an EyrWSL-owned path, preserve that **specific launcher** under an unused backup name outside the repository before linking the wrapper. Keep its versions store until the replacement is verified. Do not delete `~/.claude`, OpenCode's config/data, mise state, SSH keys, or credential files. Native-installer cleanup and auth migration are separate decisions, not prerequisites to replacing a launcher. Follow the old installer's current official uninstall documentation only if removal is actually needed, checking its data impact first.
 
 After conflict/launcher review, use **Arch Bash, normal Linux user, the deployed EyrWSL repository root**, stopping at the first failure:
 
@@ -673,8 +664,8 @@ Save work before terminating Arch from normal-user PowerShell using the step 2 c
 ### AI Tools
 
 - **mise refuses a project config:** in normal-user Arch Bash, review that project's config, then run `mise trust` from the project only if you accept it. Paranoid mode prompts again when a trusted file changes. Do not disable it or trust a whole directory tree to fix one refusal.
-- **First-run wrapper fails or appears stalled:** downloads require working network access and a release eligible under the cooldown. In normal-user Arch Bash from `~`, use `mise doctor` for activation problems or `mise use -g claude` for Claude's direct installation error; substitute `codex` or `opencode` for the other tools. This latter command installs/updates host state, it is not a read-only diagnostic. Do not add `sudo`, bypass cooldowns, or reinstall with a different package manager.
-- **Wrong binary starts:** in a fresh normal-user Arch Bash, use `type -a claude codex opencode hermes` and `mise ls claude codex opencode pipx:hermes-agent uv`. Follow the ownership checks under [Existing Installations](#existing-installations); do not erase provider configuration or auth to replace a launcher.
+- **First-run wrapper fails or appears stalled:** downloads require working network access and a release eligible under the cooldown. In normal-user Arch Bash from `~`, use `mise doctor` for activation problems or `mise use -g claude` for Claude's direct installation error; substitute `opencode` for OpenCode. This latter command installs/updates host state, it is not a read-only diagnostic. Do not add `sudo`, bypass cooldowns, or reinstall with a different package manager.
+- **Wrong binary starts:** in a fresh normal-user Arch Bash, use `type -a claude opencode` and `mise ls claude opencode`. Follow the ownership checks under [Existing Installations](#existing-installations); do not erase provider configuration or auth to replace a launcher.
 - **Sign-in cannot open a browser:** open the tool's displayed URL in Windows yourself. Use only the tool's official flow and keep codes/tokens private. Account access and an expired session are provider issues, not reasons to delete dotfiles.
 - **Application colors differ:** verify the active Windows Terminal profile uses Gruvbox. Applications with their own palette follow their user configuration; terminal-color inheritance is an optional application choice.
 

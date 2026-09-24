@@ -8,7 +8,7 @@ EyrWSL owns the terminal baseline rather than layering onto an installed Omarchy
 
 - Bash, Starship, native Herdr workspaces, and command-line navigation/search tools.
 - A complete LazyVim-based Neovim configuration, contextual Git review, and vault plugins.
-- Mise launchers for Claude Code, Codex, OpenCode, and Hermes Agent.
+- Mise launchers for Claude Code and OpenCode.
 - Yazi, btop, Fastfetch, and Git configuration.
 - Windows Terminal settings and UTF-8 Neovim clipboard integration through PowerShell.
 
@@ -17,7 +17,7 @@ EyrWSL owns the terminal baseline rather than layering onto an installed Omarchy
 | Source | Contents |
 | --- | --- |
 | `bash/`, `starship/` | Shell, prompt, worktree/synchronization helpers, and `hdw`. |
-| `mise/` | Four AI launchers, Hermes's uv/Python installation support, and paranoid-mode configuration. |
+| `mise/` | Claude Code and OpenCode launchers, plus paranoid-mode configuration. |
 | `nvim/` | Complete editor bootstrap, configuration, plugins, and lockfile. |
 | `git/`, `editorconfig/` | Shared Git and editor defaults; identity remains host-local. |
 | `btop/`, `fastfetch/`, `yazi/` | Terminal application configuration. |
@@ -52,7 +52,7 @@ Choose the appropriate entry point in the [setup guide](docs/setup.md):
 
 ## Usage
 
-Open `herdr`, navigate to a project, then run `hdw ha` for a new Hermes/Neovim/shell workspace. `hdw ha -c` continues Hermes; `cc`, `cx`, and `oc` select the other clients.
+Open `herdr`, navigate to a project, then run `hdw cc` for a new Claude Code/Neovim/shell workspace. `hdw cc -c` continues Claude Code; `oc` selects OpenCode.
 
 The [operations guide](docs/operations.md) covers workspaces, Git review and worktrees, synchronization helpers, updates, and verification.
 

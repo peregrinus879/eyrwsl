@@ -24,7 +24,7 @@ Requested 2026-09-21. The directories have been relocated on Omarchy host `gu605
   vault/
 ```
 
-This is the intended topology, not a claim that WSL has every listed repository. Keep its other existing `eyrie` repositories too. Use the EyrAgents companion that configures `~/Projects/eyrie/scrape` across Claude, Codex, OpenCode and Hermes, together with the EyrWSL changes carrying this section. Record the actual revisions and any local edits when receiving them. The frozen `dotfiles-arch` companion updates its migration/backup instructions and keeps the two Shahyn repositories and `scrape` excluded from auto-refresh.
+This is the intended topology, not a claim that WSL has every listed repository. Keep its other existing `eyrie` repositories too. Use the EyrAgents companion that configures `~/Projects/eyrie/scrape` across Claude Code and OpenCode, together with the EyrWSL changes carrying this section. Record the actual revisions and any local edits when receiving them. The frozen `dotfiles-arch` companion updates its migration/backup instructions and keeps the two Shahyn repositories and `scrape` excluded from auto-refresh.
 
 ### Pending WSL Actions
 
@@ -32,12 +32,23 @@ This is the intended topology, not a claim that WSL has every listed repository.
 2. Coordinate terminals, editors and development servers using the old paths. Preflight every source/destination pair; preserve and resolve collisions rather than merging or overwriting trees. Move each existing repository directly beneath `eyrie`, retaining its basename. The known moves are `branchers/omarchy` to `eyrie/omarchy`, `mews/shahynmc` to `eyrie/shahynmc`, and `mews/shahyn-control-lab` to `eyrie/shahyn-control-lab`. Review additional WSL-only entries individually. Linked worktrees or external Git-directory pointers need their native Git relocation procedure rather than an ordinary directory rename.
 3. Move the entire `~/Projects/scratch` directory to `~/Projects/eyrie/scrape`, including hidden, ignored, non-repository and nested-repository contents. Preserve modes. Prefer same-filesystem, no-copy, no-clobber renames; stop for a separate preservation plan if the filesystems differ. Do not create the destination before moving an existing source. If already migrated, verify it instead; if both paths exist, resolve the collision with H. Remove only empty `mews`/`branchers` parents with `rmdir`. Keep `quarry` and `vault` in place. Persistent `scrape` data is user work, not disposable execution scratch.
 4. Check affected non-secret configuration and symlink targets using explicit scopes. In the ignored `eyrie/shahynmc/.claude/settings.local.json`, relocate an existing scratch Read allowance to the exact new root, preserving its scope and the other settings. This local edit is not carried by pull. The maintained EyrAgents rules replace the old special grant, without granting all of `eyrie`. Keep normal protected-path and native permission restrictions. Reopen active tools from their new directories; preserve client session/history stores.
-5. From the intended EyrAgents clone, run `make lint check`, then its guarded `make restow verify`. Use its opaque Codex/Hermes reconcilers, not raw host configuration reads. Restart OpenCode and Hermes and begin fresh affected-client sessions. Follow [persistent-scratch acceptance](../../eyragents/docs/operations.md#persistent-scratch), including installed Hermes runtime/metadata checks and bounded canaries. Check new-root writes in owned fixtures, sibling/old-root ordinary handling and retained protected-path refusals. Record Codex startup or other native limitations separately; old-path or Omarchy evidence does not attest WSL.
+5. From the intended EyrAgents clone, run `make lint check`, then its guarded `make restow verify`. Restart OpenCode and begin fresh affected-client sessions. Follow [persistent-scratch acceptance](../../eyragents/docs/operations.md#persistent-scratch), including bounded canaries. Check new-root writes in owned fixtures, sibling/old-root ordinary handling and retained protected-path refusals. Record native limitations separately; old-path or Omarchy evidence does not attest WSL.
 6. Confirm the same repository identities, branches, staged/untracked work, complete scratch contents and directory modes; verify worktree paths and relevant symlinks. Search maintained source/configuration for stale operational references, classifying migration-source and negative-test references separately. Run relevant application checks from the new roots using existing dependencies. Run `make lint check twins` in EyrWSL; its broader host deployment remains governed by the existing host pass below.
 
 ### Acceptance And Close-Out
 
 Record actual WSL layout, source revisions, preservation checks, EyrAgents deployment, fresh-client results and blockers. Remove this section and its startup/ledger pointers only after WSL relocation and acceptance are complete. Keep the native-workflow, GitHub and other pending host work below until their own checks finish. Git publication and pulling this note are separate from the physical migration.
+
+## Codex And Hermes Retirement
+
+Requested 2026-09-24. H retired the Codex and Hermes Agent CLIs, already uninstalled on Omarchy host `gu605c`; EyrAgents, EyrArcHy and EyrWSL no longer carry either client. The ChatGPT/Codex desktop app is outside these repositories. After H pulls all three on WSL:
+
+1. Verify the actual WSL host and deployed clones as in [WSL Host Pass](maintenance.md#wsl-host-pass) step 1, preserving local work.
+2. In EyrWSL, run the guarded `make restow verify`; restow removes the orphaned `~/.local/bin/codex` and `~/.local/bin/hermes` links into this clone. `make verify` also rejects the retired tmux and copied-Herdr endpoints, so finish [Pending Actions](#pending-actions) first if it is still open. In EyrAgents, run its guarded `make restow verify`.
+3. H uninstalls the tools with `mise unuse -g codex`, `mise unuse -g 'pipx:hermes-agent'` and `mise unuse -g uv`, then `mise uninstall --all <tool>` for any version `mise ls` still lists.
+4. H deletes `~/.codex/config.toml`, `~/.codex/AGENTS.md` and `~/.hermes`; agents must not read or remove these protected paths. The rest of `~/.codex` (login and history) is H's decision, since no desktop app uses it on WSL.
+
+Acceptance: in a fresh normal-user shell, `command -v codex hermes uv` prints nothing, and `make verify` passes in EyrWSL and EyrAgents. Record the results, then remove this section and its ledger and startup pointers.
 
 ## Baseline And Status
 
@@ -46,8 +57,6 @@ Record actual WSL layout, source revisions, preservation checks, EyrAgents deplo
 - Follow the canonical [WSL Host Pass](maintenance.md#wsl-host-pass) for host/interop, ordinary deployment and remaining Windows checks. The upstream comparison pin is unchanged. Terminal settings replacement is not part of this handoff.
 
 ## Pending Actions
-
-Hermes acceptance also remains: follow the actual-WSL pass in [maintenance](maintenance.md#deferred-work), including the fourth wrapper, uv/Python 3.13 update persistence and `hdw ha` continuation. Use the matched EyrArcHy launcher/test twins; client configuration is independent.
 
 1. Confirm the intended normal-user WSL host and deployed clone using `uname -r`, `whoami`, `pwd`, `git status --short --branch`, and `readlink -f ~/.bashrc`. Preserve dirty/untracked work. Verify the pulled baseline, then run `make require-clone` from that clone. Stop on non-WSL, inactive interop, wrong clone or unsafe ownership. Do not run this on Omarchy or use fixture overrides against the host.
 2. Preserve active tmux/Herdr sessions and their work. Use a new normal-user Windows Terminal Arch tab outside existing sessions for deployment checks. Do not kill servers/sessions, reload an existing tmux server, terminate WSL, or delete user data/state to make retirement pass. If a session still needs tmux, defer package removal until H has safely finished or moved that work.
