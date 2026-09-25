@@ -51,9 +51,9 @@ Run `make wt-diff`. Confirm the Terminal path, the `archlinux` profile, the norm
 
 ## 6. GitHub Access
 
-1. Follow [GitHub login and HTTPS setup](setup.md#github-login-and-https); H signs in and checks the credential-storage choice. Helper settings go in the untracked `config.local`, never the stowed Git configuration.
-2. Complete the [all-repository HTTPS migration](setup.md#all-repositories-under-projects) for every repository under `~/Projects`, starting with `eyrie/omasecboot` and `eyrie/shahynmc`: convert each GitHub SSH remote and explicit push URL to its HTTPS equivalent, preserving remote roles, order, tracking and push defaults, and review aliases, other hosts and rewrites individually. Report any priority clone that is absent rather than creating it.
-3. Confirm the private `shahynmc` repository still authenticates over HTTPS through the helper, then complete the [restart and reboot checks](operations.md#github-access) without signing in again.
+1. Follow [GitHub login and HTTPS setup](setup.md#12-github); H signs in and checks the credential-storage choice. Helper settings go in the untracked `config.local`, never the stowed Git configuration.
+2. Complete the [HTTPS migration](setup.md#existing-clones-over-ssh) for every repository under `~/Projects`, starting with `eyrie/omasecboot` and `eyrie/shahynmc`: convert each GitHub SSH remote and explicit push URL to its HTTPS equivalent, preserving remote roles, order, tracking and push defaults, and review aliases, other hosts and rewrites individually. Report any priority clone that is absent rather than creating it.
+3. Confirm the `shahynmc` repository is still private and authenticates over HTTPS through the helper (`gh repo view peregrinus879/shahynmc --json nameWithOwner,isPrivate,viewerPermission`), then complete the [restart and reboot checks](operations.md#github-access) without signing in again.
 
 ## 7. EyrAgents
 

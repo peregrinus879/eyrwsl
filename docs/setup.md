@@ -1,47 +1,58 @@
 # Setup
 
-[Overview](../README.md) · [Operations](operations.md)
+[Overview](../README.md) · [Operations](operations.md) · [Deviations](../DEVIATIONS.md) · [Open work](maintenance.md)
 
-Follow the numbered steps for a new installation. Existing users should start with [Existing Installations](#existing-installations); [Troubleshooting](#troubleshooting) covers recovery. Commands retain their Windows, Arch root, or normal-user labels throughout.
+Install EyrWSL on a new machine by following the numbered steps in order. Adopting an existing Arch WSL installation starts at [Existing Installations](#existing-installations); [Troubleshooting](#troubleshooting) covers recovery.
 
 ## Installation
 
 ### Before You Begin
 
-Use a supported Windows release, preferably current Windows 11, on an x86-64 PC with hardware virtualization enabled. [Microsoft's command-based WSL installation](https://learn.microsoft.com/en-us/windows/wsl/install) requires Windows 11 or Windows 10 version 2004/build 19041 or later; that technical minimum is not a promise that an old Windows release is still supported. Arch's official image requires **WSL2**, not WSL1. This guide uses current stable WSL, not preview releases, community Arch launchers, an Arch ISO, or an AUR helper.
+You need a supported Windows release, preferably current Windows 11, on an x86-64 PC with hardware virtualization enabled. [Microsoft's WSL installation](https://learn.microsoft.com/en-us/windows/wsl/install) needs at least Windows 10 version 2004 (build 19041); the official Arch image needs **WSL 2**. The guide uses stable WSL and the official Arch image, with no preview releases, community launchers, Arch ISO or AUR helper.
 
-- **Fresh Windows machine:** follow the numbered steps in order.
-- **WSL installed, but no Arch distribution:** keep your other distributions; skip only WSL's initial installation command, then install Arch under your normal Windows account.
-- **Arch or EyrWSL already installed:** read [Existing Installations](#existing-installations) first. Do not reinstall the distribution, recreate its user, reclone over an existing directory, or remove configuration/authentication directories to resolve conflicts.
-- **Ownership:** EyrWSL owns this WSL terminal environment; EyrArcHy owns the Omarchy desktop and is not deployed on WSL. AI-client configuration is independent. No sibling or reference clone is required to install EyrWSL.
+| Starting point | Start at |
+| --- | --- |
+| Windows without WSL | [Step 1](#1-windows-and-wsl), in order |
+| WSL with other distributions, but no Arch | Step 1, skipping `wsl --install --no-distribution`; other distributions stay untouched |
+| Arch, or EyrWSL, already installed | [Existing Installations](#existing-installations); never reinstall the distribution, recreate its user or reclone over an existing directory |
 
-Run commands one at a time and stop on an unexpected error. A code block's label names the machine, shell, user, and working directory where relevant. PowerShell commands are not Bash commands. An elevated Windows account is not the Linux `root` account. Do not type prompt prefixes such as `PS C:\>`, `$`, or `#`. In Bash, a trailing `\` continues a command onto the next line; paste those lines together, with nothing after the backslash.
+EyrWSL owns the WSL terminal environment. [EyrArcHy](https://github.com/peregrinus879/eyrarchy) is never deployed on WSL, and [EyrAgents](https://github.com/peregrinus879/eyragents) owns AI-client configuration; neither is needed to install EyrWSL.
 
-`linuxuser` below is a placeholder for your chosen Linux login, for example `alex`: use lowercase letters without spaces and replace it consistently. It need not match your Windows or GitHub username. `~` and `$HOME` in Bash mean that Linux user's home, normally `/home/linuxuser`, not a Windows folder. Other placeholders are called out beside their examples; never type angle brackets as shell arguments.
+**Conventions.** Run commands one at a time and stop at an unexpected error. Each code block is preceded by where it runs:
+
+| Label | Meaning |
+| --- | --- |
+| **PowerShell (Admin)** | Windows PowerShell opened with *Run as administrator* |
+| **PowerShell** | Windows PowerShell as your normal Windows user |
+| **Arch root** | Bash in Arch as the Linux `root` user |
+| **Arch user** | Bash in Arch as your normal Linux user; *in the clone* means from `~/Projects/eyrie/eyrwsl` |
+| **File** | Content to put in a file with an editor, not a command |
+
+An elevated Windows account is not the Linux `root` account. Do not type prompt prefixes such as `PS C:\>`, `$` or `#`. In Bash, a trailing `\` continues a command on the next line; paste those lines together.
+
+**Placeholders.** `linuxuser` stands for your chosen Linux login, such as `alex`: lowercase, no spaces, used consistently; it need not match your Windows or GitHub name. Other placeholders are written in capitals, such as `YOUR_WINDOWS_USER`, and are replaced whole. In Bash, `~` and `$HOME` mean the Linux home, `/home/linuxuser`, not a Windows folder.
 
 ### 1. Windows and WSL
 
-In **Windows Settings > System > About**, check the system type and Windows version. In **Task Manager > Performance > CPU**, check that virtualization is enabled; if not, follow [Microsoft's virtualization guidance](https://support.microsoft.com/windows/c5578302-6e43-4b4b-a449-8ced115f58e1) and your PC manufacturer's UEFI instructions. On a managed PC, ask its administrator rather than bypassing policy.
+In **Settings > System > About**, check the Windows version and system type. In **Task Manager > Performance > CPU**, check that virtualization is enabled; if not, follow [Microsoft's virtualization guidance](https://support.microsoft.com/windows/c5578302-6e43-4b4b-a449-8ced115f58e1) and your PC maker's UEFI instructions. On a managed PC, ask its administrator.
 
-Install or update **Windows Terminal (stable)** through the Microsoft Store under the Windows account you will use daily, following [Microsoft's Terminal installation guide](https://learn.microsoft.com/en-us/windows/terminal/install). Launch it once. Use its tab dropdown to select Windows PowerShell; tab titles can be customized, so do not rely on the title alone to identify the shell.
+Install or update **Windows Terminal** (stable) from the Microsoft Store under your daily Windows account, following [Microsoft's guide](https://learn.microsoft.com/en-us/windows/terminal/install), and launch it once. Its tab dropdown opens Windows PowerShell; tab titles can be renamed, so do not rely on them to identify a shell.
 
-On the **Windows side**, download **JetBrainsMono** from the [Nerd Fonts downloads page](https://www.nerdfonts.com/font-downloads), extract the archive, and install the `JetBrainsMonoNerdFont-*.ttf` faces through the fonts' right-click **Install** action. Choose the family named **JetBrainsMono Nerd Font**, not the unpatched JetBrains Mono font. Restart Terminal after installing fonts. Linux font packages are unnecessary for icons rendered by Windows Terminal.
+Download **JetBrainsMono** from the [Nerd Fonts downloads](https://www.nerdfonts.com/font-downloads), extract it, and install the `JetBrainsMonoNerdFont-*.ttf` files with right-click **Install**. The family is **JetBrainsMono Nerd Font**, not the unpatched JetBrains Mono. Restart Terminal afterwards. Windows Terminal renders the icons, so Arch needs no font package.
 
-For a machine **without WSL**, open **Windows PowerShell as Administrator** from Start's right-click **Run as administrator** action. Accept the Windows elevation prompt, then run:
+On a machine **without WSL**, install it without a default distribution, then restart Windows when asked. **PowerShell (Admin):**
 
 ```powershell
 wsl --install --no-distribution
 ```
 
-This installs WSL and its required Windows features without also installing Ubuntu. Restart Windows when requested before continuing. Do not manually add legacy WSL kernel/WSLg MSI packages to a current WSL installation.
-
-For both new and existing WSL installations, use **Windows PowerShell, Administrator** to update the WSL engine to stable:
+Update WSL to the current stable release, whether new or existing. Do not add the legacy WSL kernel or WSLg installers. **PowerShell (Admin):**
 
 ```powershell
 wsl --update
 ```
 
-Close the elevated window. In **Windows PowerShell, normal Windows user**, inspect WSL and the official distribution catalog:
+Close the elevated window. **PowerShell:**
 
 ```powershell
 wsl --version
@@ -50,48 +61,44 @@ wsl --list --online
 wsl --set-default-version 2
 ```
 
-**Checkpoint:** WSL component versions are reported and the online catalog contains `archlinux`. On a fresh host, "no installed distributions" is expected for the installed list. If `archlinux` already appears there, do not install it again. WSL's own release number from `--version` and each distribution's `VERSION` column (`1` or `2`) are different things.
+**Checkpoint:** WSL reports its component versions and the online list contains `archlinux`. A fresh host has no installed distributions. If `archlinux` is already installed, go to [Existing Installations](#existing-installations). WSL's own version number and a distribution's `VERSION` column (`1` or `2`) are different things.
 
-Only when Arch is **not already installed**, run the official [Arch WSL installation command](https://wiki.archlinux.org/title/Install_Arch_Linux_on_WSL#Automated_installation) in **Windows PowerShell, normal Windows user**:
+Install the [official Arch image](https://wiki.archlinux.org/title/Install_Arch_Linux_on_WSL#Automated_installation); `archlinux` is its catalog name. **PowerShell:**
 
 ```powershell
 wsl --install archlinux
 ```
 
-`archlinux` is the official catalog name, not a guessed Store product name. Wait for download and extraction. Installation may open an Arch root shell; continue with step 2 there. If it does not, launch it with `wsl -d archlinux` from normal-user PowerShell. If the catalog/download is unavailable, use the [official image fallback](#wsl-installation-or-startup) rather than substituting a community distribution.
-
-In a separate **Windows PowerShell tab, normal Windows user**, check registration:
+Installation may open an Arch root shell; continue step 2 there, or open one with `wsl -d archlinux`. If the catalog or download is unavailable, use the [official image fallback](#wsl-installation-or-startup), never a community distribution. In a separate tab, **PowerShell:**
 
 ```powershell
 wsl --list --verbose
 wsl --status
 ```
 
-**Checkpoint:** `archlinux` is listed at version `2`; `Running` or `Stopped` is acceptable. Stop if it reports version `1`. Optionally run `wsl --set-default archlinux` in this same PowerShell tab if you want bare `wsl` to launch Arch instead of another distribution. This changes the Windows account's WSL default, not the other distribution's files.
+**Checkpoint:** `archlinux` is listed at version `2`, `Running` or `Stopped`. Stop if it shows version `1`. `wsl --set-default archlinux` optionally makes bare `wsl` open Arch; it changes only that default.
 
-### 2. WSL Initial Setup
+### 2. Arch User
 
-This step is for a **new Arch installation**. The official image defaults to root; do not assume it has Ubuntu's username-creation wizard. In **Arch Bash, root**, check:
+The official image starts as root and has no user-creation wizard. **Arch root:**
 
 ```bash
 whoami
 uname -m
 ```
 
-Expect `root` and `x86_64`. If a daily user was already created, use it and check its sudo/default-user setup instead of recreating it.
+Expect `root` and `x86_64`. If a daily user already exists, keep it and check its sudo and default-user setup instead of creating another.
 
-In **Arch Bash, root**, set a root recovery password, then fully update Arch and install the bootstrap tools:
+Set a root recovery password, then fully update Arch and install the bootstrap tools. **Arch root:**
 
 ```bash
 passwd
 pacman -Syu --needed git neovim openssh sudo
 ```
 
-`passwd` asks for the new password twice. Password entry displays no characters, not even asterisks. This is a Linux password, not your Windows PIN. Pacman shows the proposed packages and download/install sizes; read them, then answer `y` at `Proceed with installation? [Y/n]` to approve. Do not use `--noconfirm`, disable signature checking, or continue after an incomplete upgrade. For an older image, read [Arch's news](https://archlinux.org/news/) for required manual interventions first.
+`passwd` asks twice and shows nothing while you type; this is a Linux password, not your Windows PIN. Pacman lists the transaction; read it, then answer `y`. Never use `--noconfirm`, disable signature checks, or continue after an incomplete upgrade. For an older image, read [Arch news](https://archlinux.org/news/) for manual interventions first.
 
-If you intend to run multiple systemd-enabled WSL distributions concurrently, read [Arch's current default-user/UID warning](https://wiki.archlinux.org/title/Install_Arch_Linux_on_WSL#Set_default_user) before creating another UID 1000 account. Choose a distinct unused UID at user creation where required, rather than renumbering an existing populated account later. A fresh host with only Arch can use the default below.
-
-In **Arch Bash, root**, replace `linuxuser` with your chosen login before running:
+To run several systemd-enabled distributions at once, read [Arch's default-user warning](https://wiki.archlinux.org/title/Install_Arch_Linux_on_WSL#Set_default_user) and choose a free UID when creating the user; a host with only Arch uses the default. Create the user, set its password and open the sudo policy. **Arch root:**
 
 ```bash
 useradd -m -G wheel -s /bin/bash linuxuser
@@ -99,26 +106,22 @@ passwd linuxuser
 EDITOR=nvim visudo
 ```
 
-`useradd` is normally silent: `-m` creates the home directory, `-G wheel` adds the administration group, and `-s` chooses Bash. `passwd linuxuser` sets the daily user's own Linux password. If `useradd` says the user exists, stop and inspect the existing account; do not delete it.
+`useradd` is silent on success: `-m` creates the home, `-G wheel` grants administration, `-s` sets Bash. If it reports that the user exists, stop and inspect that account; never delete it.
 
-`visudo` opens the sudo policy safely in Neovim. Move with the arrow keys, press `i` to edit, then `Esc`, type `:wq`, and press Enter to save and exit. `Esc`, `:q!`, Enter abandons an edit. Use these same editor keys in later setup steps. Uncomment the password-required wheel rule, not the `NOPASSWD` variant.
-
-**File content in `/etc/sudoers`, edited through `visudo` as Arch root, not a Bash command:**
+`visudo` opens the policy in Neovim, which later steps use too: move with the arrow keys, press `i` to edit, then `Esc`, `:wq` and Enter to save, or `Esc`, `:q!` and Enter to abandon. Uncomment the password-required wheel rule, not the `NOPASSWD` one. **File `/etc/sudoers`:**
 
 ```text
 %wheel ALL=(ALL:ALL) ALL
 ```
 
-If `visudo` reports a syntax error, choose `e` to edit again; do not force it to save invalid policy. In **Arch Bash, root**, validate the policy and open WSL's per-distribution configuration:
+If `visudo` reports a syntax error, choose `e` and fix it; never save invalid policy. Validate it and open WSL's per-distribution configuration. **Arch root:**
 
 ```bash
 visudo -c
 nvim /etc/wsl.conf
 ```
 
-Expect `parsed OK` from `visudo -c`. In `/etc/wsl.conf`, preserve existing settings, including the image's `[boot]`/systemd settings. Add missing sections or edit their existing keys, without duplicating section headers. Keep automount/network defaults unless you already need a deliberate override.
-
-**File content to merge into `/etc/wsl.conf` as Arch root; replace `linuxuser`:**
+Expect `parsed OK`. In `/etc/wsl.conf`, keep existing settings, including the image's `[boot]` systemd setting, and add or edit these keys without duplicating section headers. **File `/etc/wsl.conf`:**
 
 ```ini
 [user]
@@ -129,18 +132,16 @@ enabled = true
 appendWindowsPath = true
 ```
 
-Interop permits Windows executables to run from Linux; `appendWindowsPath` makes `powershell.exe` and `clip.exe` discoverable. `/etc/wsl.conf` is a Linux file; it is not Windows' global `.wslconfig`. [Microsoft's WSL configuration reference](https://learn.microsoft.com/en-us/windows/wsl/wsl-config) documents these keys and restart behavior.
+Interop lets Linux run Windows executables, and `appendWindowsPath` makes `powershell.exe` and `clip.exe` resolvable. This is a Linux file, distinct from Windows' `.wslconfig`; [Microsoft's reference](https://learn.microsoft.com/en-us/windows/wsl/wsl-config) documents both.
 
-Save any work in Arch and type `exit` in its root Bash shell. In **Windows PowerShell, normal Windows user**, stop only Arch and reopen it:
+Type `exit`, then restart Arch to apply it. Termination stops every Arch process and discards unsaved work, but deletes nothing and leaves other distributions running; a new tab alone may reuse the running instance. **PowerShell:**
 
 ```powershell
 wsl --terminate archlinux
 wsl -d archlinux
 ```
 
-Termination stops **all processes in Arch**, not just one tab, and discards unsaved work. It does not delete the distribution or stop unrelated distributions. It is needed here to apply `/etc/wsl.conf`; simply opening another tab may reuse the running instance.
-
-In the reopened **Arch Bash, normal Linux user**, check:
+**Arch user:**
 
 ```bash
 whoami
@@ -153,53 +154,49 @@ command -v powershell.exe clip.exe
 powershell.exe -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()'
 ```
 
-**Checkpoint:** `whoami` reports your login, `pwd` is `/home/linuxuser` with your replacement, the groups include `wheel`, and `sudo whoami` reports `root`. `sudo -v` asks for **your daily user's Linux password** and returns silently on success. Both Windows commands resolve, normally under `/mnt/c/Windows`, and PowerShell prints a version. Do not clone or run Stow as root. See [User and Sudo Recovery](#user-and-sudo-recovery) if these checks fail.
+**Checkpoint:** `whoami` shows your login, `pwd` shows `/home/linuxuser`, the groups include `wheel`, `sudo -v` accepts your Linux password silently and `sudo whoami` shows `root`. Both Windows commands resolve, normally under `/mnt/c/Windows`, and PowerShell prints its version. On failure, see [User and Sudo Recovery](#user-and-sudo-recovery). Never clone or deploy as root.
 
 ### 3. Locale
 
-Use a generated UTF-8 locale. These examples choose `en_US.UTF-8`; substitute another UTF-8 locale consistently if preferred. In **Arch Bash, normal Linux user**, open the generator list:
+Use a generated UTF-8 locale; these examples use `en_US.UTF-8`. **Arch user:**
 
 ```bash
 sudo nvim /etc/locale.gen
 ```
 
-Uncomment `en_US.UTF-8 UTF-8` by removing its leading `#`; preserve any other locales you need. Save and exit. In **Arch Bash, normal Linux user**:
+Uncomment `en_US.UTF-8 UTF-8`, keeping any other locale you need, and save. **Arch user:**
 
 ```bash
 sudo locale-gen
 sudo nvim /etc/locale.conf
 ```
 
-Expect a successful generation message for `en_US.UTF-8`. Set `LANG` in the file, preserving intentional other settings. Do not set `LC_ALL` permanently.
-
-**File content in `/etc/locale.conf`, edited from Arch through `sudo nvim`, not a Bash command:**
+Expect a generation message for `en_US.UTF-8`. Set `LANG`, keeping other intentional settings; never set `LC_ALL` permanently. **File `/etc/locale.conf`:**
 
 ```ini
 LANG=en_US.UTF-8
 ```
 
-WSL can otherwise choose a locale from Windows. Follow [Arch's WSL locale override](https://wiki.archlinux.org/title/Install_Arch_Linux_on_WSL#Adjust_locale): make `/etc/default/locale` a symlink to `/etc/locale.conf`. First inspect the path in **Arch Bash, normal Linux user**:
+WSL can otherwise take the locale from Windows. [Arch's WSL locale override](https://wiki.archlinux.org/title/Install_Arch_Linux_on_WSL#Adjust_locale) makes `/etc/default/locale` a link to `/etc/locale.conf`. Inspect it first. **Arch user:**
 
 ```bash
 ls -ld /etc/default/locale
 ```
 
-If it already points to `/etc/locale.conf`, leave it alone. If it is absent, continue below. If it is a regular file or a different link, review its non-secret locale settings first, then move only that path to an unused backup name with `sudo mv -i /etc/default/locale /etc/default/locale.pre-eyrwsl` in this same Bash shell. Answer **no** to any overwrite prompt and choose a different backup name. Do not overwrite it with `ln -sf`.
-
-Only once `/etc/default/locale` is absent, run in **Arch Bash, normal Linux user**:
+If it already points to `/etc/locale.conf`, skip to the restart. If it is a regular file or another link, review it, then move it aside with `sudo mv -i /etc/default/locale /etc/default/locale.pre-eyrwsl`, answering **no** to any overwrite prompt. Never replace it with `ln -sf`. Once the path is absent, **Arch user:**
 
 ```bash
 sudo ln -s /etc/locale.conf /etc/default/locale
 ```
 
-Save work, exit Arch, then restart it in **Windows PowerShell, normal Windows user**:
+Exit Arch and restart it. **PowerShell:**
 
 ```powershell
 wsl --terminate archlinux
 wsl -d archlinux
 ```
 
-In the new **Arch Bash, normal Linux user**, verify:
+**Arch user:**
 
 ```bash
 locale -a
@@ -207,93 +204,70 @@ locale
 locale charmap
 ```
 
-**Checkpoint:** the available list includes `en_US.utf8`, `LANG` uses your selected locale, there are no locale warnings, and the character map is `UTF-8`.
+**Checkpoint:** the list includes `en_US.utf8`, `LANG` shows your locale, no warnings appear and the character map is `UTF-8`.
 
 ### 4. Prerequisites
 
-Install the baseline packages in **Arch Bash, normal Linux user**:
+Every package comes from the official Arch repositories, with its normal dependencies. Define the baseline once, then install it in a full upgrade and confirm it. **Arch user**, in one shell:
 
 ```bash
-sudo pacman -Syu --needed 7zip bash-completion bat btop curl diffutils eza fastfetch fd file findutils \
-  fzf gcc git github-cli gum inetutils inotify-tools jq lazygit less lua make man-db man-pages mise \
-  neovim openssh procps-ng python ripgrep rsync shellcheck starship \
-  stow sudo tree-sitter-cli unzip util-linux which yazi zoxide
+pkgs=(7zip bash-completion bat btop curl diffutils eza fastfetch fd file findutils fzf gcc git
+  github-cli gum inetutils inotify-tools jq lazygit less lua make man-db man-pages mise neovim
+  openssh procps-ng python ripgrep rsync shellcheck starship stow sudo tree-sitter-cli unzip
+  util-linux which yazi zoxide)
+sudo pacman -Syu --needed "${pkgs[@]}"
+pacman -T "${pkgs[@]}"
 ```
 
-All 42 packages in this command come from official Arch repositories; their normal dependencies are installed automatically. `--needed` skips already-current packages, while `-Syu` completes a full system upgrade. Read Pacman's transaction and any provider/replacement prompts before accepting. [Partial upgrades are unsupported](https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported): do not replace this with `pacman -Sy` followed by selective installs.
+Read the transaction and any provider or replacement prompt before accepting. `pacman -T` prints nothing when everything is installed; a printed name is a missing package. [Partial upgrades are unsupported](https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported), so never use `pacman -Sy` followed by selective installs.
 
-The baseline stays terminal-only: `inetutils` supplies `hostname`, `lua` supplies the Lua syntax verifier, `tree-sitter-cli` supports LazyVim, `python` supports repository checks and user-owned vault scripts, `man-db`/`man-pages` supply local documentation, and 7-Zip supports Yazi archives. No desktop `xdg-utils`, Linux font package, AUR package/helper, or Node runtime is added here. Node.js is not required by the prebuilt Claude Code and OpenCode binaries.
+The baseline is terminal-only: `inetutils` provides `hostname`, `lua` the Lua syntax check, `tree-sitter-cli` LazyVim's parsers, `python` the repository checks and vault scripts, `man-db` and `man-pages` local manuals, and `7zip` Yazi's archives. It adds no `xdg-utils`, Linux fonts, AUR packages or Node.js; the Claude Code and OpenCode binaries do not need Node.js.
 
-Verify the package list in **Arch Bash, normal Linux user**. Success prints nothing and returns to the prompt; every printed package name is an unmet dependency to resolve:
-
-```bash
-pacman -T 7zip bash-completion bat btop curl diffutils eza fastfetch fd file findutils \
-  fzf gcc git github-cli gum inetutils inotify-tools jq lazygit less lua make man-db man-pages mise \
-  neovim openssh procps-ng python ripgrep rsync shellcheck starship \
-  stow sudo tree-sitter-cli unzip util-linux which yazi zoxide
-```
-
-For Yazi image, video, PDF, and SVG previews, optionally install the official media helpers in **Arch Bash, normal Linux user**:
+Yazi's image, video, PDF and SVG previews optionally use these helpers, which `make verify` does not require. **Arch user:**
 
 ```bash
 sudo pacman -Syu --needed ffmpeg imagemagick poppler resvg
 ```
 
-These helpers are optional and are not required by `make verify`.
-
-Herdr is also required by the full `make verify` command baseline. It uses its standalone installer only while no official Arch package is available. Recheck the package in **Arch Bash, normal Linux user**:
+[Herdr](https://herdr.dev) is part of the verified baseline. Check for an official package first. **Arch user:**
 
 ```bash
 pacman -Si herdr
 ```
 
-If the probe reports package metadata, use the official package (`sudo pacman -Syu --needed herdr` in this same Bash shell). Only if it reports `package 'herdr' was not found`, use the [canonical Herdr installer](https://herdr.dev/install.sh) below. A network or database failure is not evidence of package absence.
-
-This command downloads and executes upstream code as your user, never with `sudo`; review the linked installer before choosing to run it. In **Arch Bash, normal Linux user**:
+If package details print, install it with `sudo pacman -Syu --needed herdr`. Only when Pacman reports `package 'herdr' was not found` (a network or database error proves nothing), review the [Herdr installer](https://herdr.dev/install.sh) and run it as your user, never with `sudo`. **Arch user:**
 
 ```bash
 curl -fsSL https://herdr.dev/install.sh | sh
 ```
 
-Expect installation under `~/.local/bin/herdr`. A warning that this directory is not yet on `PATH` is expected before EyrWSL is stowed; the fresh-shell check below confirms it later. Package ownership remains Pacman-first: recheck before a future standalone reinstall, and review any ownership migration rather than installing one copy over another.
+It installs `~/.local/bin/herdr`; a warning that this directory is not yet on `PATH` is expected until EyrWSL is deployed. When a package appears later, review the move to it rather than installing a second copy.
 
-Claude Code and OpenCode are installed later by EyrWSL's mise wrappers. **Fresh installs should not also install their Pacman/native/npm versions.** Existing installations use the [migration guidance](#existing-installations), not blanket removal commands. Authentication and subscriptions are separate from binary installation.
+Claude Code and OpenCode are installed in [step 8](#8-ai-clients) by EyrWSL's mise wrappers, so do not install their Pacman, native or npm versions.
 
 ### 5. Clone
 
-Keep the clone in the Linux filesystem, not `/mnt/c`, a Windows Downloads folder, or a Windows-synced directory. It supplies live symlink targets after deployment, so do not delete or casually move it. In **Arch Bash, normal Linux user, from any directory**:
+Keep the clone in the Linux filesystem, not under `/mnt/c` or a Windows-synced folder. After deployment it is live configuration, so do not delete or casually move it. **Arch user:**
 
 ```bash
 mkdir -p ~/Projects/eyrie
 git clone https://github.com/peregrinus879/eyrwsl.git ~/Projects/eyrie/eyrwsl
-```
-
-The public HTTPS clone requires no GitHub login or token. If Git says the destination already exists, stop and use the existing-installation checks; do not delete the directory or clone into it again. In **Arch Bash, normal Linux user**:
-
-```bash
 cd ~/Projects/eyrie/eyrwsl
-pwd
 git status --short --branch
 ```
 
-**Checkpoint:** the path is `/home/linuxuser/Projects/eyrie/eyrwsl` with your login, and status reports `main` tracking `origin/main` with no changed files on a fresh clone. Read `AGENTS.md`, `DEVIATIONS.md`, and `docs/maintenance.md` before deployment. EyrArcHy and `make refs` are not bootstrap requirements.
+The public clone needs no GitHub login. If the destination exists, stop and follow [Existing Installations](#existing-installations); never delete it or clone into it. **Checkpoint:** status shows `main` tracking `origin/main` with no changes. Read [AGENTS.md](../AGENTS.md), [DEVIATIONS.md](../DEVIATIONS.md) and the [maintenance ledger](maintenance.md) before deploying.
 
-### 6. Neovim Ownership
+### 6. Git Identity
 
-The `nvim/` package includes the complete LazyVim bootstrap, static configuration, and generated plugin lockfile. **Do not clone LazyVim's starter or another Neovim config into `~/.config/nvim`.** If that directory already holds your own configuration, review the conflicts and preserve it before stowing. Do not delete plugin data or caches as a routine setup step.
-
-### 7. Private Git Identity
-
-Tracked Git config intentionally excludes `[user]` identity. **A GitHub no-reply address is mandatory**, not a personal/work inbox and not `your-email@example.com`. In GitHub's web UI, open **Settings > Emails**, enable **Keep my email addresses private**, and use the exact no-reply address GitHub displays. Its usual form is `ID+USERNAME@users.noreply.github.com`; some older accounts have `USERNAME@users.noreply.github.com`. Do not invent the numeric ID. See [GitHub's email reference](https://docs.github.com/en/account-and-profile/reference/email-addresses-reference#your-noreply-email-address).
-
-In **Arch Bash, normal Linux user**, open the host-local file. If it already exists, preserve other settings and edit only the necessary identity fields:
+Tracked Git configuration has no identity; it lives in an untracked host file. Commits must use your **GitHub no-reply address**: in GitHub's **Settings > Emails**, enable **Keep my email addresses private** and copy the exact address shown, usually `ID+USERNAME@users.noreply.github.com` ([GitHub's reference](https://docs.github.com/en/account-and-profile/reference/email-addresses-reference#your-noreply-email-address)). Never use a personal inbox or invent the numeric ID. **Arch user:**
 
 ```bash
 mkdir -p ~/.config/git
 nvim ~/.config/git/config.local
 ```
 
-**File content in `~/.config/git/config.local`, edited as the normal Linux user, not a Bash command. Replace both example values with your name and GitHub-provided address:**
+Keep other settings in an existing file and set only the identity. **File `~/.config/git/config.local`:**
 
 ```ini
 [user]
@@ -301,27 +275,28 @@ nvim ~/.config/git/config.local
   email = 12345678+YOUR_GITHUB_USERNAME@users.noreply.github.com
 ```
 
-This untracked host file belongs outside the repository. Do not put identity into `git/.config/git/config` or commit it. Read-only cloning does not require identity, but commits do. The include takes effect after Stow; the post-Stow check below verifies the effective identity without printing it.
+Never put identity in the tracked `git/.config/git/config`. The stowed configuration includes this file after [step 7](#7-deploy), which checks the result.
 
-### 8. Prepare
+### 7. Deploy
 
-Start with a **read-only preview**, not cleanup. In **Arch Bash, normal Linux user, EyrWSL repository root**:
+The `nvim/` package is a complete LazyVim configuration with its plugin lockfile, so do not clone LazyVim's starter into `~/.config/nvim`. An existing configuration there is a conflict to review, like any other.
+
+Preview the links read-only. **Arch user, in the clone:**
 
 ```bash
-cd ~/Projects/eyrie/eyrwsl
 make dry-run
 ```
 
-This previews package links without creating them. A fresh Arch user normally has a regular `~/.bashrc` from `/etc/skel`, so an initial conflict is expected. Stow conflict output can return a nonzero status; read the reported paths rather than treating it as permission to overwrite them. Existing folded or dangling links may also prevent this first preview until guarded preparation. The preview does not run the deployment host guard: `make clean`, Stow's host-writing targets, and `make verify` require WSL2, enabled `binfmt_misc`, an enabled `WSLInterop` or `WSLInterop-late` handler, both Windows commands on `PATH`, and a successful five-second, no-profile PowerShell probe. A setting in `/etc/wsl.conf` alone does not establish active interop.
+A fresh user has a regular `~/.bashrc` from `/etc/skel`, so a conflict on it is expected; Stow can exit nonzero on conflicts. Read the reported paths; a conflict is never permission to overwrite. The preview skips the host check that the writing targets (`clean`, `stow`, `restow`, `unstow`, `verify`) run: WSL 2, an enabled `WSLInterop` or `WSLInterop-late` handler, both Windows commands on `PATH` and a five-second PowerShell probe. A setting in `/etc/wsl.conf` alone does not prove interop works.
 
-For a **reported regular `~/.bashrc` conflict only**, compare it in **Arch Bash, normal Linux user, EyrWSL repository root**:
+For a reported regular `~/.bashrc`, compare it with EyrWSL's. **Arch user, in the clone:**
 
 ```bash
 ls -ld ~/.bashrc
 diff -u ~/.bashrc bash/.bashrc
 ```
 
-The `ls` permission field starts with `-` for a regular file; a symlink starts with `l` and shows `->` and its target. Do not use the regular-file example below for a link owned by another clone. `diff` returns status 1 when files differ, which is expected. Review local customizations privately; do not paste sensitive shell settings into reports. Once you have decided to replace this specific regular file, preserve it in a unique backup directory in **Arch Bash, normal Linux user**:
+A permission field starting with `-` is a regular file; `l` is a link, which belongs to another clone and needs [its own resolution](#packages-and-deployment). `diff` exits 1 when the files differ. Once you decide to replace the regular file, keep it in a unique backup directory. **Arch user:**
 
 ```bash
 backup_dir=$(mktemp -d "$HOME/eyrwsl-backup.XXXXXX") &&
@@ -329,29 +304,26 @@ backup_dir=$(mktemp -d "$HOME/eyrwsl-backup.XXXXXX") &&
   printf 'Preserved old Bash config in %s\n' "$backup_dir/bashrc"
 ```
 
-Retain that backup until the new setup is verified. Add only still-needed, non-secret machine customizations to files under `~/.config/bash-overlays/`; do not source the entire old `.bashrc` from the new one. For other conflicts, compare the exact owned file and preserve it under an unused backup name outside the repository. Never move all of `~/.config`, delete an agent directory, use `stow --adopt`, or force symlinks to make the preview pass.
+Keep the backup until the new setup is verified. Carry any still-needed, non-secret machine settings into a file under `~/.config/bash-overlays/`, never by sourcing the old `.bashrc`. Handle any other conflict the same way: compare the exact file and move it to an unused backup name outside the clone. Never move all of `~/.config`, delete an agent directory, use `stow --adopt` or force links.
 
-After reviewing all conflicts, run guarded preparation in **Arch Bash, normal Linux user, EyrWSL repository root**:
+Then run the guarded preparation and preview again. **Arch user, in the clone:**
 
 ```bash
 make clean
 make dry-run
 ```
 
-Despite its name, `make clean` is **not** a project-file deletion command. It classifies all owned endpoints and parents before changing them and removes only leftover owned folds, recognized dangling active-package clone links, and exact retired links into this clone. It never traverses a queued fold or removes real directories and user state. It refuses regular files, foreign links, and special files rather than replacing them. It is a mutation, unlike `make dry-run`; do not confuse it with `git clean`. Resolve a refusal, then rerun this pair in order. **Checkpoint:** preparation finishes, often with `nothing to remove`, and the final dry run has no conflict or ownership failure.
+`make clean` is not `git clean` and deletes no project files. It checks every owned path first, then removes only leftover folded links, dangling links into this clone and exact retired links it owns; it refuses regular files, foreign links and special files, and leaves real directories and user state alone ([DEVIATIONS.md](../DEVIATIONS.md#dotfile-management) has the contract). Resolve a refusal and rerun both. **Checkpoint:** preparation finishes, often with `nothing to remove`, and the preview reports no conflict.
 
-### 9. Stow
-
-After the successful preview, link every package in **Arch Bash, normal Linux user, EyrWSL repository root**. Never use `sudo make stow`:
+Deploy as your user, never with `sudo`. **Arch user, in the clone:**
 
 ```bash
-cd ~/Projects/eyrie/eyrwsl
 make stow
 ```
 
-Stow keeps managed parent directories real and links only their files; this protects the repository from generated host state. Once linked, edits in the clone affect live configuration before any commit. An error is not a completed deployment; resolve it and rerun the preview before retrying.
+Managed parent directories stay real and only files are linked, so generated host state never lands in the clone. From now on, an edit in the clone changes live configuration before any commit. An error means the deployment is incomplete; resolve it and preview again.
 
-Open a **new Arch tab in Windows Terminal as the normal Linux user**, outside existing multiplexer sessions. A new tab is preferable to repeatedly sourcing `.bashrc`, which may retain old aliases and environment values. Preserve active sessions instead of killing them to refresh configuration. In that fresh **Arch Bash, normal Linux user**:
+Open a **new Arch tab** outside any multiplexer; re-sourcing `.bashrc` in an old shell can keep stale aliases and variables. **Arch user:**
 
 ```bash
 cd ~
@@ -360,12 +332,11 @@ command -v mise herdr nvim starship
 mise settings get paranoid
 ```
 
-**Checkpoint:** `.bashrc` resolves into this EyrWSL clone's `bash/.bashrc`, all four commands resolve, and paranoid mode prints `true`. A fresh shell should show Starship without errors.
+**Checkpoint:** `.bashrc` resolves to this clone's `bash/.bashrc`, all four commands resolve, paranoid mode prints `true`, and the Starship prompt shows without errors.
 
-Check the **resolved Git identity configuration** in **Arch Bash, normal Linux user, EyrWSL repository root**, without displaying either value:
+Check the effective Git identity without printing it. **Arch user, in the clone:**
 
 ```bash
-cd ~/Projects/eyrie/eyrwsl
 if [[ -n $(git config --get user.name) && $(git config --get user.email) == *@users.noreply.github.com ]]; then
   printf 'OK: Git identity uses a name and GitHub no-reply address\n'
 else
@@ -373,9 +344,11 @@ else
 fi
 ```
 
-Expect `OK`. A legacy `~/.gitconfig` or repository-local identity can supersede the host file; fix the specific override instead of editing tracked configuration or publishing your inbox. Repeat this check inside a project before its first commit. This checks Git configuration, not commit-time environment overrides: do not set `GIT_AUTHOR_EMAIL` or `GIT_COMMITTER_EMAIL` to a different identity.
+Expect `OK`. A legacy `~/.gitconfig` or a repository-local identity overrides the host file; fix that override, never the tracked configuration. Repeat the check in each project before its first commit, and do not set `GIT_AUTHOR_EMAIL` or `GIT_COMMITTER_EMAIL` to another identity.
 
-In **Arch Bash, normal Linux user, from your home directory in a fresh tab**, explicitly invoke the stowed wrappers to install the AI binaries without beginning an interactive session:
+### 8. AI Clients
+
+The stowed wrappers install Claude Code and OpenCode through mise on first use. Install both without starting a session. **Arch user:**
 
 ```bash
 cd ~
@@ -383,126 +356,143 @@ cd ~
 ~/.local/bin/opencode --version
 ```
 
-Expect a download on first use followed by each tool's version. The wrappers run `mise use -g`, install under `~/.local/share/mise`, and record the tool's `latest` selection in host-local `~/.config/mise/config.toml`. Do not run them with `sudo` or place that generated config in a Stow package. They keep mise's default 24-hour release cooldown; `mup` (`mise up`) keeps it too.
-
-In a **fresh Arch Bash, normal Linux user**, check installation and resolution:
+Each downloads on first use, then prints its version. The wrappers run `mise use -g`, which installs under `~/.local/share/mise` and records the `latest` selection in the host-local `~/.config/mise/config.toml`; that file stays out of every package. They keep mise's 24-hour release cooldown, as does `mup` (`mise up`). Never run them with `sudo`. In a fresh tab, **Arch user:**
 
 ```bash
 mise ls claude opencode
 command -v claude opencode
 ```
 
-**Checkpoint:** mise lists an installed version of both tools, and each command resolves under `~/.local/share/mise` or to its `~/.local/bin` wrapper, not an old Pacman/native/Windows install. Full EyrWSL verification requires these binaries independently of optional client configuration; sign-in is needed only when using each provider.
+**Checkpoint:** mise lists both, and each resolves under `~/.local/share/mise` or to its `~/.local/bin` wrapper, not to an older Pacman, native or Windows copy.
 
-### GitHub Access
-
-For GitHub work, complete [GitHub CLI login and HTTPS setup](#github-login-and-https) inside Arch WSL after Stow. `github-cli` is already in the 42-package baseline. The bootstrap HTTPS clone needs no transport change; existing SSH origins need their own exact review. Complete the [fresh-client and restart/reboot checks](operations.md#github-access) before claiming routine readiness. Login is host-local and does not authorize repository mutations. Readers who do not use GitHub can skip this stage.
-
-### 10. Client Configuration
-
-The installed AI clients use their normal per-user configuration. This repository owns their installation and generic launching, while model settings, permissions and agent workflows are managed independently.
-
-### 11. First Launch
-
-Launch the tools **one at a time** in **Arch Bash, normal Linux user**, exiting one before starting the next:
+Launch each client once, exiting one before starting the other, and follow its sign-in flow. If no browser opens, open the printed URL in Windows yourself; the baseline omits `xdg-utils`. Keep passwords, codes, tokens and authentication files out of repositories and reports. Sign-in problems are provider issues, not deployment failures. **Arch user:**
 
 ```bash
 claude
 opencode
 ```
 
-Follow each provider's current interactive sign-in flow. If it prints a browser URL instead of opening Windows' browser, open that URL yourself on Windows; the terminal-only baseline intentionally omits `xdg-utils`. Keep passwords, tokens, one-time codes, and auth files out of the repository and assistant reports. Existing sign-in state should remain in place through a launcher migration. Authentication failures do not indicate a dotfile deployment failure; resolve account access before testing workspace helpers.
+The clients read their normal per-user configuration; [EyrAgents](https://github.com/peregrinus879/eyragents) provides the shared harness for both. Paranoid mode makes mise ask before trusting a project's `mise.toml` or `.tool-versions`: read the file before running `mise trust` in that project, and never turn paranoid mode off.
 
-Paranoid mode requires explicit trust for project-level `mise.toml`/`.tool-versions` files; read a project's config before running `mise trust` in that project. Never turn paranoid mode off to finish setup. Global mise configuration is implicitly trusted.
+### 9. Neovim
 
-Open Neovim as the **normal Linux user in Arch Bash**:
+**Arch user:**
 
 ```bash
 nvim
 ```
 
-First launch downloads the plugins pinned by `lazy-lock.json`; allow the network operations to finish. In Neovim, run `:LazyHealth` and `:checkhealth`, confirm Gruvbox loads, then `:qa` to exit and open it again. Distinguish missing optional providers from required runtime errors. Do not run a plugin update merely to install the locked versions. The vault at `~/Projects/vault`, its synchronization, and `normalize.py` are user-owned and not installed here; set `OBSIDIAN_VAULT` in a machine-local Bash overlay if using another path.
+The first launch installs the plugins pinned by `lazy-lock.json`; let it finish. Run `:LazyHealth` and `:checkhealth`, confirm the Gruvbox theme, then `:qa` and reopen. Missing optional providers are not errors. Do not update plugins just to install the pinned versions. The vault at `~/Projects/vault`, its synchronization and `normalize.py` are yours, not installed here; for another path, set `OBSIDIAN_VAULT` in a Bash overlay.
 
-In **Arch Bash, normal Linux user, EyrWSL repository root**, run the full check:
+### 10. Verify
+
+**Arch user, in the clone:**
 
 ```bash
-cd ~/Projects/eyrie/eyrwsl
 make verify
 ```
 
-Expect successful checks ending in `ok:   verify`, with no `FAIL` lines. A missing EyrArcHy sibling produces an explicitly skipped twin check; it is not a reason to deploy EyrArcHy on WSL.
+**Checkpoint:** the run ends with `ok:   verify` and no `FAIL` line. Without an EyrArcHy clone beside this one, the twin check is reported as skipped; do not deploy EyrArcHy to satisfy it. The manual checks in [Operations](operations.md#verify) follow once Windows Terminal is set up.
 
-### 12. Windows Terminal
+### 11. Windows Terminal
 
-This is a separate, explicit Windows-side deployment, not part of Stow. **The tracked file replaces the entire active Terminal settings file; it is not a theme merge.** It changes defaults across profiles, keybindings, menu visibility (including hiding Windows PowerShell), and the default profile to `archlinux`. Save custom profiles, themes, and shortcuts before opting in. If you need to retain a different Terminal layout, do not push this full file until you have reviewed that difference.
+This step is a separate, explicit Windows deployment. **The tracked file replaces the whole Terminal settings file; it is not a theme merge.** It sets defaults for every profile, the keybindings, menu visibility (hiding Windows PowerShell) and `archlinux` as the default profile. Save any custom profiles, themes and shortcuts you want to keep, and review them against the tracked file first.
 
-Launch stable Windows Terminal once and open its settings JSON through **Settings > Open JSON file**, or hold Shift while selecting **Settings** in the tab dropdown. Note the actual file path; do not edit the generated `defaults.json`. Close the settings editor before deployment to avoid competing saves.
-
-First inspect the differences in **Arch Bash, normal Linux user, EyrWSL repository root**:
+Open Terminal's settings file through **Settings > Open JSON file** (or Shift with **Settings** in the tab dropdown), note its path, and close the editor so it cannot save over the deployment; `defaults.json` is generated and never edited. Compare. **Arch user, in the clone:**
 
 ```bash
-cd ~/Projects/eyrie/eyrwsl
 make wt-diff
 ```
 
-The helper prints tracked and deployed paths. `+` diff lines are the **current Windows-side** settings. `drift detected` and a nonzero result are expected before first deployment; an invalid-file/path error must be resolved first. Review the full difference, not only colors.
-
-Only after deciding to replace those settings, run in **Arch Bash, normal Linux user, EyrWSL repository root**:
+The helper prints both paths; `+` lines are the current Windows settings. `drift detected` with a nonzero exit is expected before the first deployment; a path or JSON error must be fixed first. Review the whole difference. Once you decide to replace the settings, **Arch user, in the clone:**
 
 ```bash
 make wt-push
 make wt-diff
 ```
 
-`make wt-push` resolves the active Windows account through PowerShell and validates both files as JSON. Equal files produce `no changes` without a write. Changed settings are backed up beside the destination as `settings.json.backup-TIMESTAMP` before atomic replacement; the command prints both paths. **Checkpoint:** the following diff ends with `no drift: tracked and deployed settings match`. Keep the backup until font, profiles, and keybindings are confirmed in a new Terminal window.
+`make wt-push` finds the active Windows account through PowerShell, validates both files as JSON, and writes nothing when they already match. Otherwise it saves `settings.json.backup-TIMESTAMP` beside the destination, replaces the file atomically, and prints both paths. **Checkpoint:** the second diff reports `no drift: tracked and deployed settings match`. Keep the backup until the font, profiles and keys are confirmed in a new Terminal window.
 
-Automatic discovery targets the stable Store installation at `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`. Preview/unpackaged installations or a custom path need `WT_SETTINGS`, expressed as an absolute **WSL path**. For example, replace the entire quoted Windows path below with the path you noted in the UI, including your actual Windows username. In **Arch Bash, normal Linux user, EyrWSL repository root**:
+The helper finds the stable Store installation at `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`. For a preview, unpackaged or custom installation, set `WT_SETTINGS` to the path you noted, as a WSL path, and use the same shell for diff and push; `unset WT_SETTINGS` restores discovery. **Arch user, in the clone:**
 
 ```bash
 export WT_SETTINGS="$(wslpath -u 'C:\Users\YOUR_WINDOWS_USER\AppData\Local\Microsoft\Windows Terminal\settings.json')"
 make wt-diff
 ```
 
-Review first, then use the same shell/variable for `make wt-push` and `make wt-diff`. The variable lasts only in this shell; `unset WT_SETTINGS` returns to automatic discovery. The helper accepts JSON with an optional UTF-8 BOM, not JSON comments or trailing commas. For a JSONC file, preserve a separate backup and deliberately convert a working copy to strict JSON; do not erase custom settings to get past validation.
+The helper accepts strict JSON, with an optional UTF-8 byte-order mark, but no comments or trailing commas. For a JSONC file, keep a separate backup and convert a working copy deliberately; never discard settings to pass validation.
 
-To roll back, close the settings editor and use Windows File Explorer to locate the **exact backup path printed by the helper**. Preserve the current settings separately, then copy that chosen backup over its adjacent `settings.json`, confirming replacement only for that file. Reopen Terminal to check it. Rollback restores your previous whole configuration and will intentionally show drift from the tracked file.
+To roll back, close the settings editor, keep a copy of the current file, and copy the exact backup the helper printed over its neighboring `settings.json` in File Explorer. The rolled-back file then shows drift from the tracked one, as intended.
 
-After deployment, confirm the default profile opens `archlinux` as your normal Linux user, the font is JetBrainsMono Nerd Font at size 9, and Gruvbox is active. The config expects current WSL's `Microsoft.WSL` dynamic profile and disables the older `Windows.Terminal.Wsl` generator. Do not repeatedly push away an unresolved missing-profile warning. Settings UI saves can serialize a generated profile into the deployed file; review `make wt-diff` before choosing whether to restore canonical settings. Finish the manual [Verify](operations.md#verify) checks, including clipboard behavior.
+**Checkpoint:** a new window opens `archlinux` as your normal user, in JetBrainsMono Nerd Font at size 9 with Gruvbox. The file expects current WSL's `Microsoft.WSL` dynamic profile and disables the legacy `Windows.Terminal.Wsl` generator. A save from the Settings UI can write generated profiles into the file; review `make wt-diff` before restoring. Then complete the manual [Verify](operations.md#verify) checks, including the clipboard.
 
-### Existing Installations
+### 12. GitHub
 
-**Upgrading is not reinstalling.** Keep the registered distribution, Linux user, clone, projects, local Git identity, and authentication state. Before significant host migrations, make and test a backup using your own trusted backup workflow; a WSL export contains private files and credentials, so do not place it in a repository or send it to an assistant. Never use `wsl --unregister` as troubleshooting cleanup: Microsoft documents that it permanently deletes that distribution's data.
+Only for GitHub work. The GitHub CLI (`gh`, from `github-cli`) signs in and serves as Git's HTTPS credential helper, with no SSH keys or Windows services. Complete step 7 first, so the identity file and its include exist.
 
-In **Windows PowerShell, normal Windows user**, use `wsl --list --verbose` to identify the actual installed name. If it differs from `archlinux`, substitute that exact name in launch/terminate commands and review the tracked Terminal profile assumption before deployment. An existing WSL1 or community Arch distribution is a migration, not this fresh-install path: preserve it and follow the [Microsoft backup/conversion reference](https://learn.microsoft.com/en-us/windows/wsl/basic-commands#set-wsl-version-to-1-or-2) before any conversion. Official Arch supports only WSL2.
+Check for an existing login. **Arch user:**
 
-For an existing EyrWSL clone, inspect it in **Arch Bash, normal Linux user, from any directory**:
+```bash
+gh auth status --hostname github.com
+```
+
+If needed, sign in through the browser or device-code flow, opening the printed URL in Windows if no browser opens, then configure the credential helper. **Arch user:**
+
+```bash
+GIT_CONFIG_GLOBAL="$HOME/.config/git/config.local" GH_PATH=gh \
+  gh auth login --hostname github.com --git-protocol https --web
+GIT_CONFIG_GLOBAL="$HOME/.config/git/config.local" GH_PATH=gh \
+  gh auth setup-git --hostname github.com
+```
+
+The variables write the helper into the untracked `config.local` as `!gh auth git-credential`, resolved through `PATH` rather than a versioned path. Plain `gh auth setup-git` would write through the stowed global configuration into this clone. The helper replaces the credential chain for `github.com` and `gist.github.com` only, so review an existing custom helper first; other hosts keep theirs.
+
+`gh` uses an operating-system credential store when one is available and otherwise falls back to a plaintext file in your home; on WSL that is not Windows Credential Manager. Check which one it reports and decide whether it fits the host. Keep authentication state out of Git and never print tokens ([login and storage](https://cli.github.com/manual/gh_auth_login), [helper setup](https://cli.github.com/manual/gh_auth_setup-git), [`GH_PATH`](https://cli.github.com/manual/gh_help_environment)).
+
+The clone from step 5 already uses HTTPS. Confirm the remote in both directions. **Arch user, in the clone:**
+
+```bash
+git remote get-url --all origin
+git remote get-url --push --all origin
+```
+
+A clone that still uses SSH for the canonical repository changes only that remote, then rechecks with the same two commands. Convert any other clone as in [Existing Clones over SSH](#existing-clones-over-ssh). **Arch user, in the clone:**
+
+```bash
+git remote set-url origin https://github.com/peregrinus879/eyrwsl.git
+```
+
+**Checkpoint:** both directions show the HTTPS URL, then the [GitHub access checks](operations.md#github-access) pass in a fresh terminal, after a WSL restart and after a Windows reboot. Signing in authorizes no repository change by itself.
+
+## Existing Installations
+
+**Upgrading is not reinstalling.** Keep the registered distribution, Linux user, clone, projects, Git identity and sign-in state. Before a significant migration, make and test a backup with your own tools; a WSL export holds private files and credentials, so keep it out of repositories and assistants. Never use `wsl --unregister` to troubleshoot: it permanently deletes the distribution.
+
+In **PowerShell**, `wsl --list --verbose` shows the installed name; if it is not `archlinux`, use the actual name in every command and review the Terminal profile before deploying. A WSL 1 or community Arch distribution is a migration: keep it, and follow [Microsoft's conversion reference](https://learn.microsoft.com/en-us/windows/wsl/basic-commands#set-wsl-version-to-1-or-2) before converting. Official Arch supports only WSL 2.
+
+Inspect the deployed clone. **Arch user:**
 
 ```bash
 git -C ~/Projects/eyrie/eyrwsl status --short --branch
 readlink -f ~/.bashrc
 ```
 
-Use the clone supplying your live links, not an unrelated second clone. Preserve dirty/untracked work and stop to reconcile local commits or another-clone ownership errors. Do not reset, auto-stash, or delete anything to get a clean update. Read this clone's maintenance ledger for pending host migrations.
-
-Once you have confirmed the intended clone/branch is clean and the update is wanted, run in **Arch Bash, normal Linux user, EyrWSL repository root**:
+Work in the clone your live links point to, not a second checkout. Keep uncommitted and untracked work; reconcile local commits or ownership errors first, and never reset, stash automatically or delete to get a clean update. Read the [maintenance ledger](maintenance.md) and any [handoff](handoff.md) for pending host work. With the clone clean, **Arch user, in the clone:**
 
 ```bash
-cd ~/Projects/eyrie/eyrwsl
 git pull --ff-only
 ```
 
-This updates live Stow sources immediately, even before restowing. A fast-forward refusal needs review, not a forced reset. Recheck the updated setup guide and ledger, install any missing baseline packages using step 4's full-upgrade command, then inspect existing AI launchers in **Arch Bash, normal Linux user**:
+The pull changes live configuration at once, before any restow. A refused fast-forward needs review, never a forced reset. Install any missing baseline packages with [step 4](#4-prerequisites)'s commands, then look for older AI launchers. **Arch user:**
 
 ```bash
 type -a claude opencode
 pacman -Q opencode
 ```
 
-Missing commands/packages are legitimate results for a host that never installed them. If an old executable shadows mise, determine its exact owner first: `pacman -Qo /absolute/path/to/executable` in this same Bash shell, replacing the path with the one reported by `type`. Have Pacman remove only a confirmed obsolete package, reviewing the transaction before accepting; never manually delete a file Pacman owns. Do not run a blanket `pacman -Rns` list copied from a different host.
+Missing commands or packages are normal. For an old executable that shadows mise, find its owner first with `pacman -Qo /ABSOLUTE/PATH`, using the path `type` printed, and have Pacman remove only a confirmed obsolete package after reviewing the transaction. Never delete a Pacman-owned file by hand or copy a removal list from another host. A user-level launcher at a path EyrWSL owns is moved to an unused backup name outside the clone before deployment; keep its version store until the replacement works. Never delete `~/.claude`, OpenCode's configuration or data, mise state, SSH keys or credentials; uninstalling an old native installer is a separate decision, made with its official documentation.
 
-For a confirmed user-level standalone launcher at an EyrWSL-owned path, preserve that **specific launcher** under an unused backup name outside the repository before linking the wrapper. Keep its versions store until the replacement is verified. Do not delete `~/.claude`, OpenCode's config/data, mise state, SSH keys, or credential files. Native-installer cleanup and auth migration are separate decisions, not prerequisites to replacing a launcher. Follow the old installer's current official uninstall documentation only if removal is actually needed, checking its data impact first.
-
-After conflict/launcher review, use **Arch Bash, normal Linux user, the deployed EyrWSL repository root**, stopping at the first failure:
+Then redeploy with the guarded sequence, stopping at the first failure. **Arch user, in the clone:**
 
 ```bash
 make dry-run
@@ -511,136 +501,74 @@ make dry-run
 make restow
 ```
 
-An initial preview may identify old links that `make clean` is designed to repair; do not bypass an unfamiliar ownership refusal. The last preview must be conflict-free. Open a fresh Arch tab, repeat the mise/bootstrap checks in [Stow](#9-stow), and run `make verify`. Existing authentication should still be present; do not sign out or erase auth merely to test the update. Windows Terminal changes always retain the separate diff/review/push/diff sequence.
+`make clean` also removes links to files the repository has retired, and only this sequence does: restow and verify never clean ([DEVIATIONS.md](../DEVIATIONS.md#dotfile-management) lists the retired paths). A pull uninstalls no package and leaves loaded functions and aliases in running shells. The last preview must be clean. In a fresh tab, repeat the checks from [step 7](#7-deploy) and [step 8](#8-ai-clients), then run `make verify`. Sign-in state should survive; never sign out to test an update. Windows Terminal keeps its separate diff, review, push and diff sequence.
 
-Local tmux support and copied Omarchy Herdr recipes are retired from EyrWSL's source; the baseline remains 42 packages. Pulling does not uninstall a host package or unload functions/aliases in an existing shell. The explicit retirement inventory covers `~/.config/bash/functions/{tdw,tmux,herdr}`, `~/.config/tmux/tmux.conf`, and a former folded `~/.config/tmux` link to this clone's `tmux/.config/tmux`. The Herdr helper endpoint maps only to this clone's former `bash/.config/bash/functions/herdr`, not the native `herdr` binary or its configuration/keymap. The inventory survives deletion of these sources from Git and `PACKAGES`, including pending known deletions still in the index. Only exact links into this clone qualify; another clone or lookalike path refuses. Use the guarded clean/preview/restow sequence above, not restow alone; verification only checks, never cleans. Keep real directories, user data/state and active sessions. Actual installed-package removal remains a separately approved WSL task in the [host procedure](handoff.md#3-deploy-eyrwsl).
-
-Retirement refuses if any exact mapped source file/symlink is still present, even if it is untracked or dangling; otherwise Stow could redeploy it. Its containing directories may keep unrelated data. HOME and real retired-path ancestors must be caller-owned, readable/writable/searchable and not group/world-writable. Unsafe metadata fails before unlinking anything and is never repaired automatically. This retirement boundary does not add permission restrictions to unrelated active-package parents.
-
-To **move a deployed clone**, first preserve any local work and run `make unstow` from the old, still-existing clone, as the normal Linux user on WSL. Then put the clone at the intended location and repeat the preview/preparation/Stow sequence there. `/old/clone/path` below is a placeholder for that exact reviewed old location, not a literal directory. In **Arch Bash, normal Linux user**:
+To **move a deployed clone**, keep any local work, remove the links from the old clone while it still exists, then place the clone at its new location and repeat [step 7](#7-deploy) there. **Arch user:**
 
 ```bash
-make -C /old/clone/path unstow
+make -C /OLD/CLONE/PATH unstow
 ```
 
-Unstow removes this repository's links, not the clone or your generated host data; applications may lack their configuration until you stow again. It does not undo Windows Terminal deployment. If the old clone is unavailable, recognized dangling links can be handled by `make clean`; a live link into a different clone must be resolved at its owner rather than forced away.
+Unstow removes only this repository's links, not the clone, host data or the Windows Terminal deployment; applications lack their configuration until you stow again. If the old clone is gone, `make clean` handles its dangling links; a live link into a different clone is resolved at that clone.
 
-### GitHub Login And HTTPS
+### Existing Clones over SSH
 
-Use Linux `gh`, supplied by the existing `github-cli` package, in **Arch WSL Bash as the normal Linux user**. Complete the host-local Git identity/include setup and Stow first. This setup uses GitHub CLI for both API access and HTTPS Git authentication; it requires no Windows SSH service, relay or key enrollment.
+Run this on the host where Git is used, after [step 12](#12-github); remote settings are local Git metadata, so no commit or pull carries them between hosts. It changes transport only, never repository locations, visibility, branches or reference clones.
 
-H checks an existing login locally:
+Find every repository below `~/Projects`, including worktrees (a `.git` file) and nested groups; `git -C REPO_PATH rev-parse --path-format=absolute --git-common-dir` identifies shared metadata so it is edited once. Keep credential stores, session histories, dependency and build trees, and symlinks leading outside out of the search. A directory without remotes needs nothing.
 
-```bash
-gh auth status --hostname github.com
-```
+For each repository, record its HEAD, status, remotes and every fetch and push URL from Git's own queries. Treat an explicit `remote.REMOTE.pushurl` separately from the fetch fallback, and account for includes, worktree configuration and URL rewrites. Never print a URL with embedded credentials. SSH URLs in tracked files such as `.gitmodules` are a source change of their own.
 
-If login is needed, complete the browser/device-code flow locally. Open the displayed URL in the Windows browser if it does not open automatically:
-
-```bash
-GIT_CONFIG_GLOBAL="$HOME/.config/git/config.local" GH_PATH=gh \
-  gh auth login --hostname github.com --git-protocol https --web
-```
-
-Then configure the standard Git helper:
-
-```bash
-GIT_CONFIG_GLOBAL="$HOME/.config/git/config.local" GH_PATH=gh \
-  gh auth setup-git --hostname github.com
-```
-
-These command-scoped variables keep helper settings in the existing untracked include and store `!gh auth git-credential`, resolving the current executable through the normal trusted PATH instead of a versioned installation directory. Plain `gh auth setup-git` can write through the stowed global Git config into this repository; use the host-local target above. The setup command resets helper chains specifically for `github.com` and `gist.github.com`; review an existing custom/account-specific helper choice first. Other hosts retain their configuration. Protocol preferences apply to this GitHub host across CLI accounts, but do not rewrite existing clone URLs.
-
-GitHub CLI uses an OS credential store when available and can fall back to a host-local plaintext file. H checks the reported storage choice locally and decides whether it fits the actual WSL host's protection. Linux CLI storage is not automatically Windows Credential Manager or DPAPI-backed. Preserve existing account access, keep generated authentication state outside Git, and never dump tokens or authentication files into reports. References: [login/storage](https://cli.github.com/manual/gh_auth_login), [helper setup](https://cli.github.com/manual/gh_auth_setup-git), and [`GH_PATH`](https://cli.github.com/manual/gh_help_environment).
-
-The bootstrap origin already uses HTTPS. In **H's canonical EyrWSL clone**, inspect both directions:
-
-```bash
-git remote get-url --all origin
-git remote get-url --push --all origin
-```
-
-If that reviewed origin still uses SSH and H intends the canonical destination, change only it:
-
-```bash
-git remote set-url origin https://github.com/peregrinus879/eyrwsl.git
-git remote get-url --push --all origin
-```
-
-Expect the canonical HTTPS URL. Preserve custom/fork destinations and convert any SSH push URL to the equivalent HTTPS destination independently. Apply the [all-repository procedure](#all-repositories-under-projects) for existing project clones. Complete [GitHub access verification](operations.md#github-access), including fresh-client, WSL-restart and Windows-reboot checks, before marking the [handoff](handoff.md) complete.
-
-### All Repositories Under Projects
-
-Run this migration on the actual host where Git will be used, after host-local `gh` setup. Remote settings live in local Git metadata; committing or pulling these docs does not transfer another host's remote changes.
-
-Inventory actual repositories recursively below `~/Projects`, including project groups, personal forks, reference clones and repositories in additional subtrees. Detect both `.git` directories and worktree `.git` files; use `git -C REPO_PATH rev-parse --path-format=absolute --git-common-dir` to avoid editing shared metadata twice. Keep credential stores, other tools' session histories, dependency/build/cache trees and symlink escapes out of discovery. Report exclusions or unreadable locations. An ordinary directory or a repository without remotes is not a reason to create a clone or add a remote.
-
-Prioritize these existing canonical clones, verifying their current destinations before changing them:
-
-| Repository | Expected canonical HTTPS origin |
-| --- | --- |
-| `~/Projects/eyrie/omasecboot` | `https://github.com/peregrinus879/omasecboot.git` |
-| `~/Projects/eyrie/shahynmc` | `https://github.com/peregrinus879/shahynmc.git` |
-
-Also cover every other discovered repository, including the harness/dotfiles, personal Omarchy fork and frozen `dotfiles-arch` clone when present. Preserve a fork's actual owner and its separate upstream. This is a transport migration, not repository relocation, visibility change, branch migration or a refresh of reference clones.
-
-For each repository, record its HEAD, index/worktree status, remote names and all effective fetch/push URLs using native Git metadata queries. Inspect explicit `remote.REMOTE.pushurl` entries separately from the fallback to fetch URLs, and account for includes, worktree configuration and URL rewrites. Never display embedded credentials; use safe URL-value filtering and name-only diagnostics for unsupported entries. Tracked `.gitmodules` or other source-owned SSH URLs, if present, need their own reviewed source change rather than an unrecorded broad replacement.
-
-Convert canonical GitHub SSH forms such as `git@github.com:OWNER/REPO.git` or `ssh://git@github.com/OWNER/REPO.git` to `https://github.com/OWNER/REPO.git`. Preserve spelling and repository identity. For a reviewed single-entry example, substitute the actual path, remote and literal owner/repository in these commands:
+Convert GitHub SSH forms such as `git@github.com:OWNER/REPO.git` or `ssh://git@github.com/OWNER/REPO.git` to `https://github.com/OWNER/REPO.git`, keeping the owner and repository exactly, including a fork's owner and its separate upstream. The last argument matches the old URL as a regular expression, so escape special characters in real names. **Arch user:**
 
 ```bash
 git -C REPO_PATH remote set-url REMOTE https://github.com/OWNER/REPO.git '^git@github[.]com:OWNER/REPO[.]git$'
-```
-
-An existing explicit SSH push URL needs its own replacement, preserving its possibly different repository:
-
-```bash
 git -C REPO_PATH remote set-url --push REMOTE https://github.com/OWNER/REPO.git '^git@github[.]com:OWNER/REPO[.]git$'
 ```
 
-The final operand matches the exact old URL as a regular expression; escape metacharacters in actual names. Re-read before each change and preserve multiple URL entries and their order instead of collapsing them. Already-HTTPS URLs stay intact, and a missing push URL continues to inherit the fetch destination. Keep branch tracking, fetch refspecs and push defaults. A non-GitHub server or SSH host alias needs a verified HTTPS endpoint, not an inferred GitHub URL. Do not install a global `insteadOf`/`pushInsteadOf` rule to conceal remaining SSH configuration.
+The second line applies only to an existing explicit SSH push URL, which may name a different repository. Re-read the URLs before each change, keep multiple entries in their order, and leave HTTPS URLs, missing push URLs, tracking, refspecs and push defaults as they are. A non-GitHub server or an SSH host alias needs a verified HTTPS endpoint, never a guessed one. Do not add a global `insteadOf` or `pushInsteadOf` rule to hide remaining SSH remotes.
 
-Re-enumerate every repository and remote afterward. Verify both `remote get-url --all REMOTE` and `remote get-url --push --all REMOTE` and unchanged HEAD/index/worktree state. For access checks, collect every distinct effective fetch and push HTTPS endpoint from that validated inventory and check each changed destination directly. A remote-name `ls-remote` checks the fetch destination only and cannot establish access to a separate push destination. In the bounded command below, replace `REPO_PATH` with the actual repository path and `HTTPS_ENDPOINT` with one safely validated credential-free URL; repeat for every distinct changed fetch/push endpoint:
+Afterwards, list every remote again in both directions and confirm HEAD, index and worktree are unchanged. `ls-remote` by remote name checks only the fetch URL, so check each distinct changed fetch and push endpoint directly, without prompts. **Arch user:**
 
 ```bash
 GIT_TERMINAL_PROMPT=0 GH_PROMPT_DISABLED=1 timeout --kill-after=2s 30s \
   git -C REPO_PATH -c credential.interactive=false ls-remote --exit-code -- HTTPS_ENDPOINT HEAD
 ```
 
-For `shahynmc`, also check `gh repo view peregrinus879/shahynmc --json nameWithOwner,isPrivate,viewerPermission`; it must remain private. A successful private-repository HTTPS lookup establishes authenticated Git read access, while public refs can be anonymous. Neither is publication approval or write-path verification. Report unsupported endpoints and pending access instead of claiming a complete migration, then carry the actual inventory into the [WSL handoff acceptance](handoff.md#6-github-access).
+For a private repository, `gh repo view OWNER/REPO --json nameWithOwner,isPrivate,viewerPermission` confirms it is still private and reachable. A successful read proves read access only, since public repositories answer anonymously; write access is proved only by an approved push. Report unsupported endpoints and pending access rather than claiming the migration complete.
 
 ## Troubleshooting
 
 ### WSL Installation or Startup
 
-- **`wsl` shows help or does not recognize an option:** check `wsl --version` in normal-user Windows PowerShell, update with `wsl --update` in Administrator PowerShell, and complete any requested Windows restart. Use current stable WSL rather than layering old kernel installers onto it. If installation still shows help on Windows 10, [Microsoft documents the explicit distribution flag](https://learn.microsoft.com/en-us/windows/wsl/basic-commands#install): use `wsl --install -d archlinux` in normal-user Windows PowerShell, only after `wsl --list --verbose` confirms Arch is not already registered.
-- **`archlinux` is missing from the online catalog:** update WSL and retry `wsl --list --online` in normal-user Windows PowerShell. Do not guess a different Arch distribution name. If catalog delivery is still unavailable, use Arch's official image below.
-- **Download is stuck at 0%:** for an installation that has not completed, Microsoft's documented retry is `wsl --install --web-download -d archlinux` in normal-user Windows PowerShell. Check `wsl --list --verbose` first; an already-registered distribution needs diagnosis, not deletion and reinstall.
-- **Error `0x80370102`/required virtualization feature missing:** check Task Manager's virtualization status, your PC's UEFI settings, and the restart after enabling WSL. If Windows itself runs in a VM, nested virtualization requires the host administrator. Follow [Microsoft's installation troubleshooting](https://learn.microsoft.com/en-us/windows/wsl/troubleshooting#installation-issues); do not disable security features or unregister a distribution as a generic fix.
+- **`wsl` prints help or rejects an option:** check `wsl --version` in PowerShell, run `wsl --update` in PowerShell (Admin) and restart Windows if asked. If installation still prints help on Windows 10, use [Microsoft's explicit form](https://learn.microsoft.com/en-us/windows/wsl/basic-commands#install), `wsl --install -d archlinux`, after `wsl --list --verbose` confirms Arch is not installed.
+- **`archlinux` missing from the online list:** update WSL and retry `wsl --list --online`. Never guess another name; use the official image below.
+- **Download stuck at 0%:** for an unfinished installation, run `wsl --install --web-download -d archlinux` in PowerShell. A distribution already listed by `wsl --list --verbose` needs diagnosis, not reinstallation.
+- **Error `0x80370102` or missing virtualization:** check Task Manager, the UEFI settings and the restart after enabling WSL; inside a virtual machine, nested virtualization is the host administrator's setting. Follow [Microsoft's troubleshooting](https://learn.microsoft.com/en-us/windows/wsl/troubleshooting#installation-issues); never disable security features or unregister a distribution as a generic fix.
 
-**Official image fallback, new installations only:** download the current `.wsl` file and its matching `.wsl.SHA256` file from the [image directory linked by ArchWiki](https://fastly.mirror.pkgbuild.com/wsl/latest/). Use the actual downloaded filename, not a dated filename from an old tutorial. In **Windows PowerShell, normal Windows user**, replace the entire quoted example path and compute its checksum:
+**Official image fallback,** for new installations only: download the current `.wsl` file and its `.wsl.SHA256` file from the [image directory ArchWiki links](https://fastly.mirror.pkgbuild.com/wsl/latest/), using the actual file names. Compute the checksum. **PowerShell:**
 
 ```powershell
 Get-FileHash -Algorithm SHA256 -LiteralPath 'C:\Users\YOUR_WINDOWS_USER\Downloads\EXACT_ARCH_IMAGE.wsl' | Format-List
 ```
 
-Open the downloaded `.SHA256` text file in Notepad. Its hexadecimal hash must match the `Hash` value exactly, ignoring letter case; stop if it differs. This detects a damaged/mismatched download, not a compromise of the source hosting both files. With current WSL installed, either double-click the verified `.wsl` file in Windows File Explorer or use **Windows PowerShell, normal Windows user**, with the same actual path:
+The hash in the `.SHA256` file must equal the `Hash` value, ignoring case; stop if it differs. This detects a damaged download, not a compromised source hosting both files. Install by opening the verified file in File Explorer, or **PowerShell:**
 
 ```powershell
 wsl --install --from-file 'C:\Users\YOUR_WINDOWS_USER\Downloads\EXACT_ARCH_IMAGE.wsl'
 ```
 
-The image's default registered name is `archlinux`; do not add `--name` unless you intentionally want a different profile name. Recheck `wsl --list --verbose` in normal-user PowerShell and return to [WSL Initial Setup](#2-wsl-initial-setup). Do not install both the catalog and file versions on top of the same name. For an unresolved startup error, search the [WSL issue tracker](https://github.com/microsoft/WSL/issues) using the exact error and your `wsl --version` output before changing host configuration.
+The image registers as `archlinux`; add `--name` only to choose another name deliberately, and never install the catalog and file versions under the same name. Check `wsl --list --verbose` and continue at [step 2](#2-arch-user). For an unresolved startup error, search the [WSL issue tracker](https://github.com/microsoft/WSL/issues) with the exact error and `wsl --version` before changing host configuration.
 
 ### User and Sudo Recovery
 
-If Arch still opens as root, opens with the wrong home, or the daily user cannot use sudo, recover through **Windows PowerShell, normal Windows user**:
+If Arch opens as root or with the wrong home, or your user cannot use sudo, open a root shell inside the existing distribution. **PowerShell:**
 
 ```powershell
 wsl -d archlinux -u root
 ```
 
-This is a root recovery shell inside the existing distribution; it does not recreate it. Replace `linuxuser` below, then inspect in **Arch Bash, root**:
+**Arch root:**
 
 ```bash
 id linuxuser
@@ -648,40 +576,38 @@ visudo -c
 nvim /etc/wsl.conf
 ```
 
-Confirm the account exists and `[user] default` names it. If `wheel` is absent from `id`'s groups, run `usermod -aG wheel linuxuser` in this root Bash shell; the `-a` preserves other groups. Use `EDITOR=nvim visudo` here to correct the password-required wheel rule and rerun `visudo -c`. For a forgotten daily-user password, `passwd linuxuser` here resets that password without exposing the old one. Do not remove/recreate the user or edit password database files.
-
-Save work before terminating Arch from normal-user PowerShell using the step 2 commands. Relaunch without `-u root`, then repeat `whoami`, `pwd`, and `sudo -v` as the normal Linux user. Never solve a Stow permission error by running deployment as root or recursively changing ownership of the entire home.
+Confirm the account exists and `[user] default` names it. If `wheel` is missing from its groups, `usermod -aG wheel linuxuser` adds it while keeping the others. Fix the wheel rule with `EDITOR=nvim visudo` and rerun `visudo -c`. `passwd linuxuser` resets a forgotten password. Never delete and recreate the user or edit the password files. Restart Arch as in [step 2](#2-arch-user), open it without `-u root`, and repeat `whoami`, `pwd` and `sudo -v`. Never fix a deployment permission error by deploying as root or changing ownership of the whole home.
 
 ### Packages and Deployment
 
-- **Pacman download, keyring, signature, or file-conflict failure:** stop before Stow. Check Windows connectivity, date/time, Arch news, and the relevant [Pacman troubleshooting](https://wiki.archlinux.org/title/Pacman#Troubleshooting). Retry a full `sudo pacman -Syu` only after diagnosing the cause, in normal-user Arch Bash. Do not bypass signature/dependency checks or use a blanket `--overwrite`.
-- **Locale warnings or mangled non-ASCII text:** in normal-user Arch Bash, check `locale -a`, `locale`, and `locale charmap`. Generate the selected UTF-8 locale and check `/etc/default/locale` against [step 3](#3-locale). Restart Arch after saving work; do not conceal the problem with a permanent `LC_ALL=C` override.
-- **Preparation/Stow conflict:** follow [Prepare](#8-prepare), comparing only the reported owned path and preserving its needed content. `make clean` is not a force option. Never use `stow --adopt`, `ln -sf`, or broad file deletion to bypass a refusal.
-- **Another-clone ownership error:** inspect `readlink -f ~/.bashrc` in normal-user Arch Bash and use that deployed clone. A move requires unstowing from the old clone first; do not repoint live links from an unrelated checkout.
-- **Commands/prompt missing after Stow:** open a fresh normal-user Arch tab outside existing multiplexer sessions and repeat the step 9 checks. `wsl -e COMMAND`, noninteractive Bash, and already-running multiplexers do not necessarily load the new `.bashrc` environment. Do not kill a multiplexer with unsaved work just to refresh its shell.
-- **Git identity fails:** use the exact no-reply address from GitHub Settings > Emails in `~/.config/git/config.local`. Check legacy/repository overrides privately. Do not print `git config --list` into a support report, since unrelated settings may contain sensitive values.
+- **Pacman download, keyring, signature or file conflict:** stop before deploying. Check connectivity, the date and time, [Arch news](https://archlinux.org/news/) and [Pacman troubleshooting](https://wiki.archlinux.org/title/Pacman#Troubleshooting), then retry `sudo pacman -Syu` once the cause is understood. Never bypass signature or dependency checks or use a blanket `--overwrite`.
+- **Locale warnings or garbled non-ASCII text:** check `locale -a`, `locale` and `locale charmap`, and compare with [step 3](#3-locale). Never hide the problem with a permanent `LC_ALL=C`.
+- **Preview or Stow conflict:** follow [step 7](#7-deploy) for the exact reported path. `make clean` is not a force option; never use `stow --adopt`, `ln -sf` or broad deletion.
+- **Another clone owns the links:** `readlink -f ~/.bashrc` shows the deployed clone; work there. Moving a clone needs unstowing from the old one first.
+- **Commands or prompt missing after Stow:** open a fresh tab outside any multiplexer and repeat step 7's checks. `wsl -e COMMAND`, non-interactive Bash and running multiplexers may not load the new `.bashrc`; never kill a multiplexer with unsaved work to refresh it.
+- **Git identity check fails:** set the exact no-reply address in `~/.config/git/config.local` and look for a legacy or repository-local override privately. Do not paste `git config --list` into a report; unrelated settings can be sensitive.
 
 ### AI Tools
 
-- **mise refuses a project config:** in normal-user Arch Bash, review that project's config, then run `mise trust` from the project only if you accept it. Paranoid mode prompts again when a trusted file changes. Do not disable it or trust a whole directory tree to fix one refusal.
-- **First-run wrapper fails or appears stalled:** downloads require working network access and a release eligible under the cooldown. In normal-user Arch Bash from `~`, use `mise doctor` for activation problems or `mise use -g claude` for Claude's direct installation error; substitute `opencode` for OpenCode. This latter command installs/updates host state, it is not a read-only diagnostic. Do not add `sudo`, bypass cooldowns, or reinstall with a different package manager.
-- **Wrong binary starts:** in a fresh normal-user Arch Bash, use `type -a claude opencode` and `mise ls claude opencode`. Follow the ownership checks under [Existing Installations](#existing-installations); do not erase provider configuration or auth to replace a launcher.
-- **Sign-in cannot open a browser:** open the tool's displayed URL in Windows yourself. Use only the tool's official flow and keep codes/tokens private. Account access and an expired session are provider issues, not reasons to delete dotfiles.
-- **Application colors differ:** verify the active Windows Terminal profile uses Gruvbox. Applications with their own palette follow their user configuration; terminal-color inheritance is an optional application choice.
+- **mise refuses a project configuration:** review the file, then run `mise trust` in that project only if you accept it; a changed file asks again. Never disable paranoid mode or trust a whole tree.
+- **First wrapper run fails or stalls:** it needs the network and a release past the cooldown. From `~`, `mise doctor` diagnoses activation, and `mise use -g claude` (or `opencode`) shows the installation error; it installs, so it is not read-only. Never add `sudo`, skip the cooldown or switch package managers.
+- **The wrong binary starts:** in a fresh tab, compare `type -a claude opencode` with `mise ls claude opencode`, then follow [Existing Installations](#existing-installations). Never erase provider configuration or sign-in state to replace a launcher.
+- **Sign-in cannot open a browser:** open the printed URL in Windows, use only the tool's official flow, and keep codes and tokens private.
+- **Application colors differ:** confirm the active Terminal profile uses Gruvbox; applications with their own palette follow their own configuration.
 
 ### Windows Integration
 
-For missing clipboard/PowerShell interop, test **Arch Bash, normal Linux user, fresh tab** without reading or replacing the Windows clipboard:
+For missing clipboard or PowerShell interop, check without touching the clipboard, in a fresh tab. **Arch user:**
 
 ```bash
 command -v clip.exe powershell.exe
 powershell.exe -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()'
 ```
 
-Expect two executable paths and a PowerShell version for the repository's host gate; Neovim's provider itself requires only WSL and `powershell.exe`, not `clip.exe`. The version probe checks execution, not clipboard correctness. If commands are absent, check both `enabled = true` and `appendWindowsPath = true` under `[interop]` in `/etc/wsl.conf`. A machine-local shell overlay must preserve existing Windows PATH entries. Save work, terminate only Arch from normal-user Windows PowerShell, then relaunch. Once interop works, manually test Neovim copy/paste with disposable non-sensitive text, including non-ASCII characters and multiple lines; never use existing clipboard contents as a diagnostic artifact.
+Expect two paths and a version; the host check needs both, while Neovim's clipboard needs only `powershell.exe`. The probe proves execution, not clipboard correctness. If the commands are missing, check `enabled = true` and `appendWindowsPath = true` under `[interop]` in `/etc/wsl.conf`, make sure no shell overlay drops the Windows `PATH` entries, and restart Arch. Then test Neovim copy and paste with disposable text, including non-ASCII characters and several lines; never use existing clipboard contents.
 
-- **Windows Terminal settings not found:** launch the intended Terminal edition and open its actual settings JSON. Default discovery covers stable Store Terminal only; use the `WT_SETTINGS` example in [step 12](#12-windows-terminal) for another path/account. Keep that variable set for both diff and push. Do not create an empty settings file at a guessed path.
-- **Terminal settings rejected as invalid JSON:** the helper requires strict JSON even though Terminal itself accepts comments. Preserve the original before converting it, and do not skip validation. A failed push is not a deployment.
-- **Missing `archlinux` default profile:** in normal-user PowerShell confirm `wsl -d archlinux` works and `wsl --list --verbose` lists that exact name at version 2. Update/reopen WSL and stable Terminal, then inspect profile selection in Terminal's Settings > Startup. A differently named or legacy distribution needs an explicit profile decision, not repeated `make wt-push` calls. Review any resulting drift before replacing the settings again.
-- **Boxes instead of icons:** confirm Windows has **JetBrainsMono Nerd Font** installed and the active Terminal profile selects that family, then restart Terminal. Installing a Linux font will not fix Windows Terminal's rendering.
-- **Obsidian image paste unavailable:** the pinned plugin includes a WSL PowerShell image path, but its Windows clipboard and destination-path handling still need actual-host verification. Save the image through Windows or the vault's own workflow, then link/embed it in the note. The repo does not install or synchronize your vault; [maintenance](maintenance.md#limitations-under-watch) tracks the remaining check.
+- **Terminal settings not found:** open the intended Terminal's settings file and use `WT_SETTINGS` as in [step 11](#11-windows-terminal), for both diff and push. Never create a settings file at a guessed path.
+- **Settings rejected as invalid JSON:** the helper needs strict JSON although Terminal accepts comments; keep the original and convert a copy. A failed push deploys nothing.
+- **Missing `archlinux` profile:** confirm `wsl -d archlinux` works and `wsl --list --verbose` lists that name at version 2, update and reopen WSL and Terminal, then check **Settings > Startup**. A differently named or legacy distribution needs a deliberate profile choice, not repeated `make wt-push`.
+- **Boxes instead of icons:** install **JetBrainsMono Nerd Font** in Windows, select it in the active profile and restart Terminal; a Linux font does not help.
+- **Obsidian image paste:** the pinned plugin has a WSL PowerShell image path, but its Windows clipboard and destination handling are [still unverified](maintenance.md#limitations-under-watch). Save images through Windows or the vault's own workflow and link them in the note.

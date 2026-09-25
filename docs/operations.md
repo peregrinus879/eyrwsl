@@ -51,7 +51,7 @@ Use only a destination you intend to update. `rsw` prints the watcher's PID and 
 
 ## GitHub Access
 
-After [setup](setup.md#github-login-and-https), confirm from a fresh Arch terminal in this clone:
+After [setup](setup.md#12-github), confirm from a fresh Arch terminal in this clone:
 
 ```bash
 git remote get-url --push --all origin
@@ -100,7 +100,7 @@ The fixture tests model Herdr, Stow, the sync helper's processes and the Windows
 | `make twins-pair SELF_COMMIT=<sha> PEER_COMMIT=<sha> SIBLING=<path>` | Compare the twin files at two exact full commit IDs, without running the peer's code |
 | `make refs-plan`, `make refs` | Preview, then refresh the reference clones in [`references.txt`](../references.txt) |
 | `make wt-diff` | Compare the tracked Windows Terminal settings with the deployed file |
-| `make wt-push` | Deploy the reviewed settings file, backing up the previous one ([setup](setup.md#12-windows-terminal)) |
+| `make wt-push` | Deploy the reviewed settings file, backing up the previous one ([setup](setup.md#11-windows-terminal)) |
 
 Deployment goals in one Make invocation run serially, even under `make -j`; this is not a transaction against disk failure or a second concurrent deployment.
 
