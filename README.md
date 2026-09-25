@@ -1,81 +1,52 @@
 # EyrWSL
 
-A self-contained Arch Linux terminal environment for **WSL2**, adapted from [Omarchy](https://github.com/omacom/omarchy), with Windows integration and mise-managed AI tools. [GNU Stow](https://www.gnu.org/software/stow/) deploys Linux configuration; Windows Terminal settings have a separate deployment step.
+An Omarchy-style terminal environment for **Arch Linux on WSL 2**, deployed with [GNU Stow](https://www.gnu.org/software/stow/). It adapts [Omarchy](https://github.com/omacom/omarchy)'s shell, editor and tools to Windows, adds the WSL and Windows integration, and owns the whole baseline rather than layering on an installed Omarchy; every difference and its reason is in [DEVIATIONS.md](DEVIATIONS.md).
 
-EyrWSL owns the terminal baseline rather than layering onto an installed Omarchy desktop. It uses official Arch packages, the native Herdr application, and a consistent Gruvbox palette.
+## What You Get
 
-## What Is Included
-
-- Bash, Starship, native Herdr workspaces, and command-line navigation/search tools.
-- A complete LazyVim-based Neovim configuration, contextual Git review, and vault plugins.
-- Mise launchers for Claude Code and OpenCode.
-- Yazi, btop, Fastfetch, and Git configuration.
-- Windows Terminal settings and UTF-8 Neovim clipboard integration through PowerShell.
-
-## Package Layout
-
-| Source | Contents |
+| Package | Adds |
 | --- | --- |
-| `bash/`, `starship/` | Shell, prompt, worktree/synchronization helpers, and `hdw`. |
-| `mise/` | Claude Code and OpenCode launchers, plus paranoid-mode configuration. |
-| `nvim/` | Complete editor bootstrap, configuration, plugins, and lockfile. |
-| `git/`, `editorconfig/` | Shared Git and editor defaults; identity remains host-local. |
-| `btop/`, `fastfetch/`, `yazi/` | Terminal application configuration. |
-| `windows-terminal/` | Full Windows Terminal settings, deployed explicitly rather than stowed. |
+| `bash/`, `starship/` | Bash and a Starship prompt, `hdw` for [Herdr](https://herdr.dev) workspaces, Git worktree helpers (`ga`, `gd`) and rsync watches (`rsw`, `lsw`, `dsw`) |
+| `nvim/` | A complete LazyVim configuration with a pinned plugin lockfile, repository-aware Git review, vault plugins, and a UTF-8 clipboard through Windows PowerShell |
+| `mise/` | Launchers that install and update Claude Code and OpenCode through [mise](https://mise.jdx.dev), in paranoid mode |
+| `git/`, `editorconfig/` | Shared Git and editor defaults; your identity stays in an untracked local file |
+| `btop/`, `fastfetch/`, `yazi/` | Terminal application configuration in a consistent Gruvbox palette |
+| `windows-terminal/` | Complete Windows Terminal settings, deployed separately with `make wt-push` |
 
-The Linux directories above are Stow packages. `scripts/`, `tests/`, and `docs/` support setup and maintenance. [Deviations](DEVIATIONS.md) records the exact ownership boundaries.
+## Requirements
 
-## Repository Family
+Windows with WSL 2 and Windows Terminal, and an Arch Linux distribution with a normal user. Packages come from the official Arch repositories only; [setup](docs/setup.md) walks through a new installation from Windows, or an existing one, step by step.
 
-The two host-dotfiles repositories share selected configuration and verification contracts.
+## Quick Start
 
-| Repository | Purpose |
-| --- | --- |
-| [EyrArcHy](https://github.com/peregrinus879/eyrarchy) | Personal shell, desktop, and editor customizations for an existing Omarchy installation. |
-| [EyrWSL](https://github.com/peregrinus879/eyrwsl) | A self-contained Arch WSL terminal environment with Windows integration and mise-managed AI tools. |
+On an Arch WSL installation that already meets the [prerequisites](docs/setup.md#4-prerequisites):
 
-[EyrAgents](https://github.com/peregrinus879/eyragents) independently owns the shared AI harness and full workspace guide. The host repositories remain the configuration twins.
+```bash
+git clone https://github.com/peregrinus879/eyrwsl.git ~/Projects/eyrie/eyrwsl
+cd ~/Projects/eyrie/eyrwsl
+make dry-run   # preview; resolve any conflict first
+make stow      # deploy
+make verify    # repository, deployment, tool and interop checks
+```
 
-EyrArcHy is for the Omarchy desktop and is not deployed on WSL.
-
-## Setup
-
-Choose the appropriate entry point in the [setup guide](docs/setup.md):
-
-- [New Windows/Arch WSL installation](docs/setup.md#before-you-begin), with explicit Windows, root, and normal-user steps.
-- [Existing installation](docs/setup.md#existing-installations), preserving your distribution, user, projects, and configuration.
-- [GitHub access](docs/setup.md#github-access), including host-local login and prompt-free restart/reboot verification.
-- [Troubleshooting and recovery](docs/setup.md#troubleshooting).
-- [Windows Terminal deployment](docs/setup.md#12-windows-terminal), a reviewed full-file replacement with backup and rollback.
-
-**Keep the deployed clone in the Linux filesystem.** Its linked files are live configuration. The guide covers conflict preservation and the separate installation, authentication, and verification steps.
-
-## Usage
-
-Open `herdr`, navigate to a project, then run `hdw cc` for a new Claude Code/Neovim/shell workspace. `hdw cc -c` continues Claude Code; `oc` selects OpenCode.
-
-The [operations guide](docs/operations.md) covers workspaces, Git review and worktrees, synchronization helpers, updates, and verification.
-
-Open the [EyrAgents Workspace Guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) for searchable host and AI-client keys, commands, launch recipes and workflows. The single offline file includes both host profiles; on GitHub, download the raw HTML first. [Operations](docs/operations.md#workspace-guide) gives the local opening command.
-
-[GitHub setup](docs/setup.md#github-access) uses the baseline GitHub CLI and HTTPS. [Operations](docs/operations.md#github-access) covers fresh-client and restart/reboot checks.
-
-## Verify
-
-`make lint check` runs repository checks on either host. `make verify` requires the real WSL2 host with active Windows interop. Hosted CI and mocks do not establish Windows clipboard or deployment behavior; see the [verification checklist](docs/operations.md#verify).
+Keep the clone in the Linux filesystem: it is live configuration. Inside Herdr, `hdw cc` opens Claude Code, Neovim and a shell as a new workspace; [operations](docs/operations.md) covers daily use.
 
 ## Documentation
 
 | Need | Read |
 | --- | --- |
-| Install, migrate, or recover the environment | [Setup](docs/setup.md) |
-| Use helpers, update tools, or verify changes | [Operations](docs/operations.md) |
-| Find workspace keys, commands and everyday workflows | [EyrAgents workspace guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) |
-| Understand the terminal baseline and Windows differences | [Deviations](DEVIATIONS.md) |
-| Find unresolved issues or remaining host work | [Maintenance ledger](docs/maintenance.md) |
-| Complete the current cross-host migration | [WSL handoff](docs/handoff.md) |
-| Reconcile with upstream Omarchy and Windows | [omasync](.agents/skills/omasync/SKILL.md) |
-| Change the repository with an agent | [AGENTS.md](AGENTS.md) |
+| Install from Windows, step by step | [Setup: before you begin](docs/setup.md#before-you-begin) |
+| Adopt an existing Arch WSL installation | [Setup: existing installations](docs/setup.md#existing-installations) |
+| Fix installation, user or deployment problems | [Setup: troubleshooting](docs/setup.md#troubleshooting) |
+| Daily use, checks and Make targets | [Operations](docs/operations.md) |
+| What differs from Omarchy, and why | [DEVIATIONS.md](DEVIATIONS.md) |
+| Keys, commands and workflows, offline | [EyrAgents workspace guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) (download the raw file) |
+| Work pending on the WSL host | [Handoff](docs/handoff.md) |
+| Open work | [Maintenance ledger](docs/maintenance.md) |
+| Reconcile with Omarchy, WSL and Windows Terminal | [omasync](.agents/skills/omasync/SKILL.md) |
+| Rules for agents changing this repository | [AGENTS.md](AGENTS.md) |
+
+Companion repositories: [EyrArcHy](https://github.com/peregrinus879/eyrarchy) holds the overrides for an Omarchy desktop, sharing several files byte for byte with this repository, and [EyrAgents](https://github.com/peregrinus879/eyragents) holds the shared AI harness.
 
 ## License
 

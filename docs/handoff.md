@@ -1,84 +1,68 @@
 # WSL Host Handoff
 
-Direction: Omarchy source work to the actual Arch WSL2 normal-user host after H's reviewed push and fast-forward pull. This file does not transfer deployment or package-removal approval.
+[Overview](../README.md) · [Operations](operations.md) · [Open work](maintenance.md)
 
-## Projects Layout Migration
+Everything changed on Omarchy that the WSL host has not yet received, as one ordered procedure. Run it on the actual Arch WSL 2 host as the normal user, after H pulls EyrWSL, EyrArcHy and [EyrAgents](https://github.com/peregrinus879/eyragents). This file transfers no approval: package removals, exact-path cleanup, Windows settings replacement and host-local repairs each need H's approval at the time.
 
-Requested 2026-09-21. The directories have been relocated on Omarchy host `gu605c`; this section owns the remaining WSL work. Read it on the next WSL session. H confirmed `eyrie/scrape` as the scratch destination and chose to preserve existing directory modes. Linux directory modes and this relocation do not change GitHub repository visibility.
+**Rules for the whole pass.** Stop at the first mismatch. Preserve local work, active sessions, foreign files and user state; never delete something to make a check pass. Never read credential or session stores or existing clipboard contents. Record actual versions, full commit IDs and results, never credentials or transcripts.
 
-### Target Layout And Dependencies
+## 1. Host and Clones
+
+From the deployed EyrWSL clone, check `uname -r` (WSL 2), `whoami`, `pwd`, `git status --short --branch` and `readlink -f ~/.bashrc`, then `make require-clone`. Record the full commit IDs of EyrWSL and EyrArcHy and, when both are available, run `make twins-pair` on them. Never deploy EyrArcHy on WSL.
+
+## 2. Projects Layout
+
+The Omarchy host moved to this layout. If the WSL host already has it, verify it instead of moving anything:
 
 ```text
 ~/Projects/
-  eyrie/
-    dotfiles-arch/
-    eyragents/
-    eyrarchy/
-    eyrwsl/
-    omasecboot/
-    omarchy/             # from branchers
-    shahyn-control-lab/   # from mews, if present
-    shahynmc/            # from mews
-    scrape/              # complete former scratch tree
-  quarry/
-  vault/
+  eyrie/        every personal repository, including eyragents, eyrarchy, eyrwsl and omasecboot
+    scrape/     persistent scratch, formerly ~/Projects/scratch
+  quarry/       reference clones (unchanged)
+  vault/        notes (unchanged)
 ```
 
-This is the intended topology, not a claim that WSL has every listed repository. Keep its other existing `eyrie` repositories too. Use the EyrAgents companion that configures `~/Projects/eyrie/scrape` across Claude Code and OpenCode, together with the EyrWSL changes carrying this section. Record the actual revisions and any local edits when receiving them. The frozen `dotfiles-arch` companion updates its migration/backup instructions and keeps the two Shahyn repositories and `scrape` excluded from auto-refresh.
+1. Inventory `eyrie`, `branchers`, `mews`, `scratch`, `quarry` and `vault` by names and metadata only. Record each repository's HEAD (or unborn branch), status, ignored and untracked work, worktrees, directory modes and symlinks. An unborn branch can still hold untracked work.
+2. Close terminals, editors and servers using the old paths. Move each repository directly under `eyrie`, keeping its name: `branchers/omarchy`, `mews/shahynmc` and `mews/shahyn-control-lab` are the known moves; review any other entry individually. Relocate linked worktrees and external Git directories with Git's own procedure, not a directory rename.
+3. Move the whole `~/Projects/scratch` tree to `~/Projects/eyrie/scrape`, hidden and ignored contents included, preserving modes, with a same-filesystem, no-clobber rename; do not create the destination first. If both paths exist, stop and resolve the collision with H. Remove `mews` and `branchers` only if empty, with `rmdir`.
+4. In the ignored `eyrie/shahynmc/.claude/settings.local.json`, move an existing scratch read allowance to the new root, keeping its scope; pull does not carry this file.
+5. Confirm the same repositories, branches, staged and untracked work, complete scratch contents and modes, and search maintained configuration for stale paths.
 
-### Pending WSL Actions
+## 3. Deploy EyrWSL
 
-1. Verify the actual WSL host, user, HOME and deployed clones before changes. Inventory `eyrie`, `branchers`, `mews`, `scratch`, `quarry` and `vault` by names and metadata, without reading protected stores or session histories. Record repository HEADs (or unborn branches), index/worktree status, ignored/untracked preservation needs, worktrees, root modes and symlinks. Preserve local work; do not recreate repositories from clones or Git exports. On `gu605c`, Control Lab and `scratch/test` were unborn repositories with untracked work, so absence of a commit is not evidence of an empty tree.
-2. Coordinate terminals, editors and development servers using the old paths. Preflight every source/destination pair; preserve and resolve collisions rather than merging or overwriting trees. Move each existing repository directly beneath `eyrie`, retaining its basename. The known moves are `branchers/omarchy` to `eyrie/omarchy`, `mews/shahynmc` to `eyrie/shahynmc`, and `mews/shahyn-control-lab` to `eyrie/shahyn-control-lab`. Review additional WSL-only entries individually. Linked worktrees or external Git-directory pointers need their native Git relocation procedure rather than an ordinary directory rename.
-3. Move the entire `~/Projects/scratch` directory to `~/Projects/eyrie/scrape`, including hidden, ignored, non-repository and nested-repository contents. Preserve modes. Prefer same-filesystem, no-copy, no-clobber renames; stop for a separate preservation plan if the filesystems differ. Do not create the destination before moving an existing source. If already migrated, verify it instead; if both paths exist, resolve the collision with H. Remove only empty `mews`/`branchers` parents with `rmdir`. Keep `quarry` and `vault` in place. Persistent `scrape` data is user work, not disposable execution scratch.
-4. Check affected non-secret configuration and symlink targets using explicit scopes. In the ignored `eyrie/shahynmc/.claude/settings.local.json`, relocate an existing scratch Read allowance to the exact new root, preserving its scope and the other settings. This local edit is not carried by pull. The maintained EyrAgents rules replace the old special grant, without granting all of `eyrie`. Keep normal protected-path and native permission restrictions. Reopen active tools from their new directories; preserve client session/history stores.
-5. From the intended EyrAgents clone, run `make lint check`, then its guarded `make restow verify`. Restart OpenCode and begin fresh affected-client sessions. Follow [persistent-scratch acceptance](../../eyragents/docs/operations.md#persistent-scratch), including bounded canaries. Check new-root writes in owned fixtures, sibling/old-root ordinary handling and retained protected-path refusals. Record native limitations separately; old-path or Omarchy evidence does not attest WSL.
-6. Confirm the same repository identities, branches, staged/untracked work, complete scratch contents and directory modes; verify worktree paths and relevant symlinks. Search maintained source/configuration for stale operational references, classifying migration-source and negative-test references separately. Run relevant application checks from the new roots using existing dependencies. Run `make lint check twins` in EyrWSL; its broader host deployment remains governed by the existing host pass below.
+EyrWSL no longer carries local tmux, copied Omarchy Herdr recipes, Codex or Hermes. The guarded cleanup removes the retired tmux and Herdr links; `make restow` then lets Stow prune the orphaned Codex and Hermes wrappers in `~/.local/bin`, a directory the `mise` package still populates.
 
-### Acceptance And Close-Out
+1. Keep existing tmux and Herdr sessions running; use a new Windows Terminal tab for this work.
+2. Run `make dry-run`, `make clean`, `make dry-run` and `make restow`, stopping on errors; the final preview must be clean. Cleanup removes only the retired links it proves this clone owns: `~/.config/bash/functions/{tdw,tmux,herdr}`, `~/.config/tmux/tmux.conf` and a former `~/.config/tmux` fold. Afterwards, `ls ~/.local/bin` shows no `codex` or `hermes` link. Anything else refuses unchanged; resolve only an exact, reviewed conflict, with no `--adopt` or forced links.
+3. **Installed tmux.** Inspect read-only: `type -a tmux`, `pacman -Q tmux` and, if installed, `pacman -Qi tmux` and `pacman -Qo` on the reported path. Present the package, its reverse dependencies and any session still using it. Only with H's approval of that exact transaction does H run `sudo pacman -R tmux`; never force, `-Rdd`, `-Rns` or orphan cleanup. A dependency or active session keeps the package, recorded as a blocker.
+4. **Codex and Hermes.** H runs `mise unuse -g codex`, `mise unuse -g 'pipx:hermes-agent'` and `mise unuse -g uv`, then `mise uninstall --all <tool>` for any version `mise ls` still lists, and deletes `~/.codex/config.toml`, `~/.codex/AGENTS.md` and `~/.hermes`. Agents must not read or remove these paths; the rest of `~/.codex` is H's decision.
 
-Record actual WSL layout, source revisions, preservation checks, EyrAgents deployment, fresh-client results and blockers. Remove this section and its startup/ledger pointers only after WSL relocation and acceptance are complete. Keep the native-workflow, GitHub and other pending host work below until their own checks finish. Git publication and pulling this note are separate from the physical migration.
+## 4. Tools and Verification
 
-## Codex And Hermes Retirement
+In a fresh normal-user tab outside any multiplexer:
 
-Requested 2026-09-24. H retired the Codex and Hermes Agent CLIs, already uninstalled on Omarchy host `gu605c`; EyrAgents, EyrArcHy and EyrWSL no longer carry either client. The ChatGPT/Codex desktop app is outside these repositories. After H pulls all three on WSL:
+1. Use the setup guide's [package list](setup.md#4-prerequisites) (`pacman -T`) to find missing packages; H installs them in a reviewed full upgrade. Check `mise settings get paranoid` prints `true`, run `claude --version` and `opencode --version` through the `~/.local/bin` wrappers to install them if needed, and confirm `command -v codex hermes uv` prints nothing.
+2. Run `make verify` and record the result.
+3. Work through the [manual checks](operations.md#verify): shell definitions, `hdw` in a disposable Herdr session, `ga` and `gd` in a disposable repository, `rsw` with disposable local directories, the Neovim clipboard round trip through a Windows application, Git review, and the vault if present. Use only disposable projects and tools for failure checks. In the workspace guide, confirm that exported saved keys keep recognized retired IDs.
 
-1. Verify the actual WSL host and deployed clones as in [WSL Host Pass](maintenance.md#wsl-host-pass) step 1, preserving local work.
-2. In EyrWSL, run the guarded `make restow verify`; restow removes the orphaned `~/.local/bin/codex` and `~/.local/bin/hermes` links into this clone. `make verify` also rejects the retired tmux and copied-Herdr endpoints, so finish [Pending Actions](#pending-actions) first if it is still open. In EyrAgents, run its guarded `make restow verify`.
-3. H uninstalls the tools with `mise unuse -g codex`, `mise unuse -g 'pipx:hermes-agent'` and `mise unuse -g uv`, then `mise uninstall --all <tool>` for any version `mise ls` still lists.
-4. H deletes `~/.codex/config.toml`, `~/.codex/AGENTS.md` and `~/.hermes`; agents must not read or remove these protected paths. The rest of `~/.codex` (login and history) is H's decision, since no desktop app uses it on WSL.
+## 5. Windows Terminal
 
-Acceptance: in a fresh normal-user shell, `command -v codex hermes uv` prints nothing, and `make verify` passes in EyrWSL and EyrAgents. Record the results, then remove this section and its ledger and startup pointers.
+Run `make wt-diff`. Confirm the Terminal path, the `archlinux` profile, the normal user, the installed font and the palette, and that `Alt+Enter` still reaches Herdr. Deploy with `make wt-push` only after H reviews the full-file replacement, then run `make wt-diff` again and confirm the reported backup.
 
-## Baseline And Status
+## 6. GitHub Access
 
-- Use the EyrWSL commit carrying this handoff and its matched EyrArcHy new-workspace `hdw` companion. Record the actual full commit IDs and run the exact `twins-pair` check when both object sets are available; never deploy EyrArcHy on WSL. A descendant must include that matched contract, not an older current-tab helper. ArcHy's stock AI-alias restoration does not apply to WSL.
-- EyrWSL source support for local tmux and copied Omarchy Herdr recipes is retired, including `functions/herdr` and alias `h`. No Omarchy AI shortcuts or `h`/`t` aliases are carried. Native Herdr binary/configuration/keymap and the 42-package baseline remain. Installed tmux, deployed retired links, fresh-shell activation and new-workspace checks are still pending on the actual host; source/mocks and non-WSL smoke do not attest WSL behavior.
-- Follow the canonical [WSL Host Pass](maintenance.md#wsl-host-pass) for host/interop, ordinary deployment and remaining Windows checks. The upstream comparison pin is unchanged. Terminal settings replacement is not part of this handoff.
+1. Follow [GitHub login and HTTPS setup](setup.md#github-login-and-https); H signs in and checks the credential-storage choice. Helper settings go in the untracked `config.local`, never the stowed Git configuration.
+2. Complete the [all-repository HTTPS migration](setup.md#all-repositories-under-projects) for every repository under `~/Projects`, starting with `eyrie/omasecboot` and `eyrie/shahynmc`: convert each GitHub SSH remote and explicit push URL to its HTTPS equivalent, preserving remote roles, order, tracking and push defaults, and review aliases, other hosts and rewrites individually. Report any priority clone that is absent rather than creating it.
+3. Confirm the private `shahynmc` repository still authenticates over HTTPS through the helper, then complete the [restart and reboot checks](operations.md#github-access) without signing in again.
 
-## Pending Actions
+## 7. EyrAgents
 
-1. Confirm the intended normal-user WSL host and deployed clone using `uname -r`, `whoami`, `pwd`, `git status --short --branch`, and `readlink -f ~/.bashrc`. Preserve dirty/untracked work. Verify the pulled baseline, then run `make require-clone` from that clone. Stop on non-WSL, inactive interop, wrong clone or unsafe ownership. Do not run this on Omarchy or use fixture overrides against the host.
-2. Preserve active tmux/Herdr sessions and their work. Use a new normal-user Windows Terminal Arch tab outside existing sessions for deployment checks. Do not kill servers/sessions, reload an existing tmux server, terminate WSL, or delete user data/state to make retirement pass. If a session still needs tmux, defer package removal until H has safely finished or moved that work.
-3. Review the exact retirement endpoints and all parents: `~/.config/bash/functions/tdw`, `~/.config/bash/functions/tmux`, `~/.config/bash/functions/herdr`, `~/.config/tmux/tmux.conf`, and a former folded `~/.config/tmux` link to this clone's `tmux/.config/tmux`. The Herdr helper endpoint maps only to this clone's former `bash/.config/bash/functions/herdr`, not the native binary/configuration/keymap. The inventory works after pull without deleted Git/package sources; any still-present exact mapped source entry, including a dangling symlink, must refuse before cleanup or verification. Keep containing source directories with unrelated data and real home directories/contents, including tmux and older `hdw` recovery/state. HOME and real retired-path ancestors must be caller-owned, readable/writable/searchable and not group/world-writable; unsafe metadata must refuse without automatic permission repair or unlinking. Foreign links, regular/special files, redirected parents and lookalikes must refuse unchanged; resolve only an exact separately reviewed conflict. Never recursively clean HOME or follow a folded link to delete its children.
-4. Follow the existing guarded sequence, stopping on errors: `make require-clone`, `make dry-run`, `make clean`, `make dry-run`, `make restow`. An initial preview can identify old links; the final preview must be conflict-free. `make clean` classifies everything before removing proven owned links; restow is not a replacement for retirement. Confirm retired endpoints are absent, remaining managed parents real and active leaves still target this clone. No `--adopt`, forced symlinks or settings deployment.
-5. Inspect actual package ownership and reverse dependencies read-only before proposing removal: `type -a tmux`, `pacman -Q tmux`, and, if installed, `pacman -Qi tmux`. For a reported executable path, use `pacman -Qo /actual/path/to/tmux` with that exact path. Review `Required By`, `Optional For`, installed version and whether sessions or user workflows still depend on it. A missing package is a valid result, not permission to delete a standalone binary. A foreign owner or dependency is a blocker requiring H's decision.
-6. Only after presenting the exact installed package, dependency/session findings and transaction impact, obtain H's contemporaneous approval for the exact removal. For a confirmed unneeded official `tmux` package, the narrow proposal is `sudo pacman -R tmux`, run by H after approval and transaction review. Keep normal dependency checks and prompts. Never use force, `-Rdd`, `-Rns`, blanket orphan cleanup, remove a different package to satisfy this task, or delete Pacman-owned files manually. If dependencies prevent removal, keep the package and record the blocker instead of widening the transaction.
-7. Open a fresh normal-user shell rather than sourcing over old definitions. Confirm EyrWSL no longer supplies `tdw`/`tdl`/`tdlm`/`tsl`, `hdl`/`hdlm`/`hsl`/`hds`, aliases `h`/`t`, or Omarchy AI shortcuts; preserve and review any remaining machine-local definitions. `command -v herdr` and `type hdw` must resolve. Open a disposable session with `herdr`, change directory inside it, and check [Native Herdr contract](operations.md#native-herdr), including full agent/continuation commands, native names/tab `1`, geometry and AI focus. Valid populated/inactive callers, repeated calls and generated bottom-right-shell chaining must each create/focus another workspace, preserving existing names/layouts apart from global focus. Bare invocation shows usage; outside-Herdr or invalid-context calls refuse without startup or attachment. On failure, retain the new workspace/root and original caller; only verified new split panes may be removed before possible input, never any workspace/tab/root/caller. Inspect original/new recovery context and retain uncertain state. Use disposable tools/projects for failure checks, never existing work.
-8. Run `make verify` and record actual WSL results. It must not require or invoke tmux, and must reject remaining retired endpoints without mutating them. If approved package removal ran, confirm `pacman -Q tmux` reports it absent; independently inspect `type -a tmux` for another owner, without deleting it. Verify Windows Terminal still passes `Alt+Enter` to Herdr where its Omarchy map uses it; retain the current settings file. A keymap/settings mismatch needs separate review, not `make wt-push`.
+Complete EyrAgents' [WSL host pass](https://github.com/peregrinus879/eyragents/blob/main/docs/maintenance.md#wsl-host-pass): deploy its packages, confirm the renamed `sparrer` and the persistent-scratch grant, and run its permission acceptance and canary.
 
-## Acceptance And Blockers
+## 8. Reference Clones
 
-### GitHub Access Acceptance
+Only when reference-dependent maintenance needs it: preview with `make refs-plan`, get approval for any new clone or repointing, then run `make refs` and confirm exact fetched parity with local tags, ignored files and stale clones preserved.
 
-After pulling the intended EyrWSL changes, record the actual full source IDs. Verify host-local GitHub access separately from any later repository mutation approval. This handoff transfers no approval.
+## Close-Out
 
-1. Follow [GitHub login and HTTPS setup](setup.md#github-login-and-https) in normal-user Arch WSL, using the existing baseline `github-cli` package. H completes native login and checks the actual credential-storage choice locally.
-2. Keep helper settings in the included untracked `config.local`; confirm the setup did not write into the stowed Git source. Complete the [all-repository HTTPS migration](setup.md#all-repositories-under-projects) on this WSL host, covering every actual Git repository below `~/Projects`, not just the two host-dotfile clones. Prioritize `~/Projects/eyrie/omasecboot` and `~/Projects/eyrie/shahynmc`; include other `eyrie`, `quarry`, `repos` and additional project subtrees, plus legacy `mews`/`branchers`/`scratch` locations still present before layout migration. Report absent priority clones rather than creating them automatically.
-3. Inventory every remote, including `origin`, fork `upstream` remotes and explicit push URLs. Convert GitHub SSH endpoints to their equivalent HTTPS destinations, preserving owner/repository, remote roles, URL multiplicity/order, branch tracking and push defaults. Deduplicate linked worktrees by common Git directory. Preserve already-HTTPS and local-path destinations; repositories without remotes stay that way. Resolve SSH aliases, other hosts, includes or URL rewrites individually rather than guessing a destination or installing a blanket rewrite. Record any unresolved endpoint explicitly. HTTPS applies to writable forks and reference clones alike.
-4. Recheck both effective fetch and push URLs across the complete inventory and run bounded read-only access checks for changed destinations. The local remote configuration is not committed or carried by pull: Omarchy's completed conversion does not change this WSL host. Confirm the private `shahynmc` repository remains private and its HTTPS ref lookup authenticates through the host helper. Record the actual repositories covered, conversions, already-HTTPS/no-remote cases and blockers without credentials.
-5. Complete [fresh-client, targeted WSL-restart and Windows-reboot checks](operations.md#github-access) without routine reauthentication. Record prompt absence explicitly. Public branch refs alone do not establish authenticated writes; the next independently approved publication supplies that evidence.
-
-Preserve the 42-package baseline and existing SSH/Windows state. This work requires no Windows agent, relay, key migration or Omarchy PAM setup. Keep the [GitHub maintenance item](maintenance.md#deferred-work) and this handoff while actual-host acceptance remains pending.
-
-Record host, exact baseline/companion IDs, retired-link and fresh-shell checks, actual package outcome, Herdr behavior and full verification separately. Source retirement is complete even if an installed-package dependency or active session keeps host removal pending; do not report full host completion in that case. Preserve unresolved host work in the maintenance ledger. Once this concrete handoff is complete, delete this file in the normal approved completion commit, or update it only for real remaining reverse-handoff work. No approval IDs, transcripts, credentials or session contents belong here.
+Record the host, commit IDs, each section's result and any blocker. When every section succeeds, delete this file in the completion commit, together with every link to it (the README, AGENTS.md, DEVIATIONS.md, setup and the [maintenance ledger](maintenance.md)). A section that cannot finish stays here, and its blocker moves to the ledger.

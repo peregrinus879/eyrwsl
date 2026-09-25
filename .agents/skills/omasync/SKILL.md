@@ -18,7 +18,7 @@ Local reference clones live under `~/Projects/quarry/`; `references.txt` names t
 - `obsidian.nvim/` - obsidian.nvim upstream for the vault plugin spec
 - `terminal/` - Windows Terminal reference repo for settings structure and feature changes
 
-Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Reference Sources). Unresolved decisions, deferred work, and dated evidence live in `docs/maintenance.md`.
+Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Reference Sources). Open work, with each limitation's trigger for the next check, lives in `docs/maintenance.md`.
 
 ## When To Use
 
@@ -43,7 +43,7 @@ Upstream URLs, official docs, and descriptions live in `DEVIATIONS.md` (Referenc
 8. Check `git log --format="%h %ad %s" --date=short -- <file>` on the relevant reference repo when you need to determine when a difference was introduced
 9. Cross-check differences against `DEVIATIONS.md`. If a difference is not documented there, treat it as a likely upstream change that needs review
 10. Apply new upstream additions and changes where they belong in this repo
-11. Update each affected documentation owner: README overview, AGENTS invariants, DEVIATIONS rationale, `docs/setup.md` procedures, and `docs/operations.md` usage/verification. Follow [EyrAgents' guide maintenance contract](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide-src/README.md#change-coupled-maintenance): review added, changed and removed host/default controls, including Herdr, the launcher, outer terminal, Neovim/Neo-tree/vault plugins, Bash and Yazi. Compare installed/version-matched defaults even when no personal mapping file changed. Reconcile EyrAgents' `docs/workspace-guide-src/host-reference.json` entries, recipes, routing notes and evidence together, then run `make workspace-guide` and `make check` there. Obtain companion edit scope when needed; unavailable or unauthorized reconciliation remains explicit in this repository's maintenance ledger. Host implementation twins still change together. Generation/twin checks do not establish semantic or live-keymap accuracy. Keep only unresolved work and revalidation evidence in `docs/maintenance.md`
+11. Update each affected documentation owner: README overview, AGENTS invariants, DEVIATIONS rationale, `docs/setup.md` procedures, and `docs/operations.md` usage/verification. Follow [EyrAgents' guide maintenance contract](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide-src/README.md#change-coupled-maintenance): review added, changed and removed host/default controls, including Herdr, the launcher, outer terminal, Neovim/Neo-tree/vault plugins, Bash and Yazi. Compare installed/version-matched defaults even when no personal mapping file changed. Reconcile EyrAgents' `docs/workspace-guide-src/host-reference.json` entries, recipes, routing notes and evidence together, then run `make workspace-guide` and `make check` there. Obtain companion edit scope when needed; unavailable or unauthorized reconciliation remains explicit in this repository's maintenance ledger. Host implementation twins still change together. Generation/twin checks do not establish semantic or live-keymap accuracy. Keep only open work and its recheck triggers in `docs/maintenance.md`
 12. Summarize which changes were adopted, rejected, or intentionally kept different
 
 ## Completion Checks

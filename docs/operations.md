@@ -1,141 +1,119 @@
 # Operations
 
-[Overview](../README.md) · [Setup](setup.md) · [Open work](maintenance.md)
+[Overview](../README.md) · [Setup](setup.md) · [Deviations](../DEVIATIONS.md) · [Open work](maintenance.md)
 
-Run Make targets from the repository root, on the host required by each target.
+Run Make targets from the repository root, on the host each target requires.
 
 ## Workspace Guide
 
-Open the self-contained [EyrAgents Workspace Guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) in a browser and select **Arch WSL**. With the standard Projects layout, run from Arch Bash and choose a browser if prompted:
+The [EyrAgents workspace guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) is one offline page of Herdr, AI-client, Neovim, Git-review, vault, Bash and Yazi controls. Open it from Arch Bash and select **Arch WSL** (on GitHub, download the raw file first):
 
 ```bash
 explorer.exe "$(wslpath -w "$HOME/Projects/eyrie/eyragents/docs/workspace-guide.html")"
 ```
 
-Daily and All views cover Herdr, the AI clients, Neovim/Neo-tree, Git review, vault notes, Bash tools and Yazi. The host profile selects outer-terminal controls and host-specific notes. Search, saved keys, copyable launcher commands and printing work offline; source links open online references when selected.
-
-Adjust the path for a differently located EyrAgents clone, or download the raw HTML from GitHub. EyrAgents owns the guide's source and [maintenance instructions](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide-src/README.md); run `make workspace-guide` and `make check` there to rebuild and check the single output. Host `make twins` protects shared implementation files.
-
-Guide reconciliation is part of every in-scope binding or command addition, change and removal, including inherited defaults after application/plugin updates. `/omasync` reviews host/default and launcher facts and reconciles EyrAgents' `host-reference.json` within authorized companion scope; `/eyrsync` owns AI-client facts. Record unavailable or unauthorized companion work in this repository's maintenance ledger. Build checks verify file consistency; source/help review and actual-host checks establish control accuracy.
+EyrAgents owns the guide and its [maintenance contract](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide-src/README.md). A key or command change here includes reconciling the guide's `host-reference.json` there; `/omasync` reviews host facts and `/eyrsync` client facts.
 
 ## Native Herdr
 
-Open Herdr independently by running `herdr` in a normal-user Arch shell. In a shell inside that session, navigate to the desired directory, then run `hdw <cc|oc> [-c]` to create and focus a new workspace:
+Start Herdr with `herdr` in a normal-user Arch shell. In a shell inside it, change to the project directory and run `hdw <cc|oc> [-c]`:
 
-- `cc` sends `claude`; `-c` uses `claude -c`.
-- `oc` sends `opencode`; `-c` uses `opencode -c`.
+| Command | Opens |
+| --- | --- |
+| `hdw cc` | Claude Code (`claude`) |
+| `hdw cc -c` | Claude Code, continuing the last session (`claude -c`) |
+| `hdw oc` | OpenCode (`opencode`) |
+| `hdw oc -c` | OpenCode, continuing the last session (`opencode -c`) |
 
-Client configuration is independent; `hdw` supplies no YOLO flag or separate profile.
+Each call creates and focuses a new workspace in the current directory: the AI client full-height on the left, Neovim top-right and a shell bottom-right, with the AI client focused. Call it again from any shell, including the new bottom-right one, to open another workspace; existing workspaces keep their names and layouts. Herdr's own controls handle navigation (`Ctrl+Space`, then `c` for a tab or `Shift+C` for a workspace). [DEVIATIONS.md](../DEVIATIONS.md#bash) holds the full contract, including how a failed call preserves state for inspection.
 
-Claude Code continuation follows Claude Code's own session ownership. A session sent to the background with `/bg`, or with `Move to background and exit` in the exit dialog shown while background tasks run, continues under Claude Code's daemon, independent of Herdr windows and the Herdr server. While it runs, `claude -c` refuses with `Your most recent conversation is running in the background (session <uuid>)`; the short id is the first eight characters, and `claude agents` lists them. In the root pane `hdw` opened, `claude attach <id>` reopens the session with its background tasks intact. `claude stop <id>` followed by `claude -c` continues the same session in the foreground and ends its background tasks.
+**Claude Code background sessions.** A session sent to the background with `/bg`, or with *Move to background and exit*, keeps running under Claude Code's own daemon, independently of Herdr. While it runs, `claude -c` refuses with `Your most recent conversation is running in the background (session <uuid>)`. `claude agents` lists such sessions; `claude attach <id>` reopens one with its tasks intact, and `claude stop <id>` followed by `claude -c` continues it in the foreground.
 
-`hdw` uses the current physical directory, not an inferred Git root. AI occupies the full-height left column, Neovim the top-right and a shell the bottom-right, with equal columns, equally stacked right panes and AI focus. The caller may be in a populated tab or an inactive workspace, but its pane identity and selected-tab context must be valid. Every call creates a separate workspace, even in the same directory; change directory in a generated bottom-right shell and call again to open the next workspace. Bare `hdw` prints usage; outside-Herdr or invalid-context calls refuse.
-
-Existing workspace/tab names and layouts stay intact, apart from normal global workspace focus moving to the new workspace. New names are Herdr's defaults, with no `--label` or rename/metadata writes; the new default tab displays positional `1` ([Herdr 0.8.2 display-name implementation](https://github.com/herdrdev/herdr/blob/v0.8.2/src/workspace.rs)). There is no workspace reuse, roots registry, server startup or client attachment. Old `hdw` state and recovery files remain unused and untouched. Native controls still own navigation: the shipped `Ctrl+Space` prefix followed by `c` opens a tab and `Shift+C` opens a workspace; in-app help is authoritative for personal keymap changes.
-
-Cooperating calls are serialized. Caller identity, the pre-creation workspace inventory, the new root's opaque terminal identity, exact membership and complete geometry are checked before tool input. Cleanup may close only proven new split panes before input, never any workspace, tab, root or original caller. A newly created workspace/root always remains for inspection on failure; possible input or uncertain ownership preserves remaining state. Inspect the reported original/new recovery context before manual action. This is not an atomic multi-RPC transaction.
-
-The `cc`/`oc` selectors are arguments, not shell aliases. `hdw` sends full commands and uses normal client configuration; it is not an isolated profile. EyrWSL supplies no Omarchy AI shortcuts, `h`/`t` aliases, copied `hdl`/`hdlm`/`hsl`/`hds`, or tmux recipes. Native Herdr binary/configuration/keymap remain unchanged; do not import desktop launch helpers during sync.
-
-## GitHub Access
-
-After [host-local setup](setup.md#github-login-and-https), open a fresh normal Arch WSL terminal in this clone and check:
-
-```bash
-command -v gh
-git remote get-url --push --all origin
-gh repo view peregrinus879/eyrwsl --json nameWithOwner,viewerPermission
-GIT_TERMINAL_PROMPT=0 GH_PROMPT_DISABLED=1 \
-  git -c credential.interactive=false ls-remote --exit-code --refs origin refs/heads/main
-```
-
-Expect the canonical HTTPS origin, intended repository/access level, and a branch ID without another credential prompt. Public Git refs can be read anonymously; that result alone does not establish authenticated Git writes. H checks helper configuration locally, without displaying credentials, and the next independently approved publication supplies real write-path evidence.
-
-After saving work, at a time H chooses, check `wsl --list --verbose` in **normal Windows PowerShell**. H can then terminate only the intended distribution with `wsl --terminate archlinux`, substituting its actual registered name if different. Reopen it through Windows Terminal and repeat the checks above without refreshing credentials. At the next H-chosen Windows reboot, sign in normally and repeat them from a fresh Arch WSL terminal. Confirm prompt absence explicitly; a manually repaired terminal is not persistence evidence. Launch new AI clients there and record actual versions, source IDs and outcomes in [maintenance](maintenance.md#deferred-work) and the [handoff](handoff.md).
-
-Authentication establishes account access, not authorization for repository mutations. Credential access carries the account's permissions, not read-only isolation. A locked store, expired login or wrong account requires H-local recovery through the standard CLI/native UI. Neither TLS/host-trust weakening nor dumping tokens is a recovery step. Follow the setup command's host-local configuration target when refreshing Git helper settings after an update.
+EyrWSL carries no Omarchy AI launch aliases or copied Herdr and tmux recipes; `cc` and `oc` are `hdw` arguments, not aliases.
 
 ## Git Review
 
-After stowing, start a fresh Neovim session once to load `git-review.lua`. `Space g d` shows staged and unstaged hunks, `Space g D` compares against origin, and `Space g s` shows status including untracked files. Each invocation uses the current file/directory's Git repository or the selected Neo-tree item, falling back to the displayed tree root when no item path exists. Symlink targets and linked worktrees are supported; switching files between repositories switches the review target without changing any editor directory.
-
-Empty or special non-explorer buffers use the current window's directory. A known non-Git file or explorer target warns instead of silently reviewing another repository. No recurring `:cd`/`:lcd` is needed for repository files or selected repository folders. Keep the ordinary picker review controls; do not use its stage/restore actions unless intended.
+Start a fresh Neovim session once after stowing. `Space g d` shows staged and unstaged hunks, `Space g D` compares against origin, and `Space g s` shows status including untracked files. Each uses the Git repository of the current file or directory, or of the selected Neo-tree item, without changing Neovim's working directory; a file outside any repository warns instead of reviewing another one. [DEVIATIONS.md](../DEVIATIONS.md#neovim) holds the full contract.
 
 ## Git Worktrees
 
-From a repository, `ga branch-name` creates a linked worktree beside the checkout and enters it. From inside a linked worktree, `gd` shows the resolved path and branch and asks before removing them. It refuses dirty work or a HEAD not contained in the primary checkout's HEAD; a failed branch deletion leaves the branch in place.
-
-These helpers act on the actual repository/worktree context, including from a subdirectory. Save and commit work before removal; see [worktree verification](#verify) for disposable checks.
+From a repository, `ga branch-name` creates a linked worktree beside the checkout and enters it. From inside a linked worktree, `gd` shows the resolved path and branch and asks before removing them. It refuses dirty work, or a HEAD not contained in the primary checkout's HEAD, and never forces removal; a failed branch deletion leaves the branch in place. Both act on the actual repository, including from a subdirectory.
 
 ## Synchronization Watches
 
 | Command | Effect |
 | --- | --- |
 | `rsw source-directory destination` | Start an initial rsync and keep watching the source. Quote paths containing spaces. |
-| `lsw` | List active watches created by this helper, with their source and destination. |
-| `dsw` | Stop all active watches recognized as belonging to this helper. |
+| `lsw` | List the watches this helper started, with their source and destination. |
+| `dsw` | Stop the watches this helper started. |
 
-Use only a destination you intend to update. `rsw` prints the watcher PID and log path; readiness means the watcher started, not that the transfer completed. Check that log for failures. Changes during a transfer remain observed, failed transfers retry, and periodic reconciliation catches missed events. Destination-only files are retained because the helper does not use `--delete`. Remote destinations use your normal SSH access and require their own authorization.
+Use only a destination you intend to update. `rsw` prints the watcher's PID and log path; readiness means the watcher started, not that a transfer succeeded, so check the log. Changes during a transfer are still picked up, failed transfers retry after five seconds, and a reconciliation 60 seconds after the last successful transfer catches missed events. Files that exist only at the destination are kept, since the helper never uses `--delete`. Remote destinations use your normal SSH access.
+
+## GitHub Access
+
+After [setup](setup.md#github-login-and-https), confirm from a fresh Arch terminal in this clone:
+
+```bash
+git remote get-url --push --all origin
+gh repo view peregrinus879/eyrwsl --json nameWithOwner,viewerPermission
+GIT_TERMINAL_PROMPT=0 GH_PROMPT_DISABLED=1 \
+  git -c credential.interactive=false ls-remote --exit-code --refs origin refs/heads/main
+```
+
+Expect the HTTPS origin, the intended access level, and a branch ID with no credential prompt. Public refs can be read anonymously, so only an approved push proves write access. To confirm access survives a restart, stop only this distribution from Windows PowerShell (`wsl --list --verbose`, then `wsl --terminate archlinux`, using its actual name), reopen it and repeat the check; do the same after the next Windows reboot. A locked store, expired login or wrong account is recovered locally through the GitHub CLI; never weaken TLS or dump tokens.
 
 ## Verify
 
-Layout fixtures use fake agents and a Python-backed Herdr model. They cover new-workspace creation, populated/inactive callers, repeated calls and generated-shell chaining, ownership, failure recovery and concurrency without using running user workspaces or real agents. Real-Herdr, rendered UI and actual-host evidence remain separate; see [active limitations](maintenance.md#active-limitations). Deployment fixtures retire real old Stow deployments after source removal, including the copied Herdr helper; verification neither requires nor invokes tmux.
+After any change:
 
-The rsync fixture uses fake local monitor/transfer commands, not SSH or production endpoints. It checks literal source resolution, complete readiness publication, events during a successful transfer, burst coalescing, failure retry, missed-event reconciliation and watcher management. Normal checks shorten only the fixture's reconciliation interval to 10 seconds; `RSW_FIXTURE_REALTIME=1 bash tests/rsyncing.sh` exercises the unchanged 60-second interval. The Python guard requires Linux child-subreaper support and `/proc`: it owns detached descendants, uses bounded TERM/KILL cleanup, and removes state only after all children are reaped. Unverified cleanup fails and retains its reported diagnostic directory. Killing the guard itself with SIGKILL can leave descendants and state behind.
+```bash
+make lint check   # ShellCheck 0.11.0 or newer; every owned Bash, Lua, TOML, JSON, Git, btop and Fastfetch file; the fixture tests
+```
 
-After stowing or changing owned packages:
+On the WSL host, after stowing or changing a package, `make verify` checks WSL 2 and Windows interop, runs `lint`, `check` and `twins`, then checks the deployment: retired links are gone, the command baseline, Claude Code and OpenCode installed through mise and resolving through it, mise in paranoid mode, every link resolving into this clone with real managed parents, a GitHub no-reply Git identity (without printing it), and every owned configuration file. It fails closed.
 
-- Run `make lint` and `make check` after any change; both are repository-only (ShellCheck; every owned Bash, Lua, TOML, JSON, JSONC, Git, btop, and Fastfetch config in `repo` mode; the `tests/` fixtures). GitHub Actions runs them on pushes to `main` and pull requests, plus an exact committed twin-pair check against EyrArcHy's fetched default branch.
-- Run `make verify` from the repo root on the WSL host after stowing or changing owned packages: the active WSL2/interop host guard first, then `lint`, `check`, and `twins`, followed by `scripts/verify.sh` in `full` mode (command baseline, the two AI tools installed by mise and resolving through it, every Git-visible Stow source resolving into this repo with its managed parents real directories, a GitHub no-reply Git identity that is never printed, and every owned config).
+Then check by hand, in fresh sessions:
 
-Complete these manual fresh-session checks:
+- Bash and Starship load without errors; `command -v herdr` and `type hdw` resolve; none of `tdw`, `tdl`, `tdlm`, `tsl`, `hdl`, `hdlm`, `hsl`, `hds` or the aliases `h`, `t`, `claude`, `c`, `cx`, `cy`, `ic`, `ix`, `icx` exist (a remaining definition needs ownership review, not blanket removal);
+- in a disposable Herdr session, `hdw` produces the layout above, repeated calls each create a new workspace, bare `hdw` prints usage, and calls outside Herdr refuse;
+- in a disposable Git fixture, `ga <branch>` from a subdirectory and `gd` from the new worktree behave as above;
+- with disposable local directories, `rsw` delivers changes made during a transfer, and `lsw` and `dsw` manage only its own watchers;
+- `mise ls claude opencode` lists both, `command -v claude opencode` resolves under `~/.local/share/mise` or to the `~/.local/bin` wrappers, `mise settings get paranoid` prints `true`, and `minimum_release_age` is unset, so mise's 24-hour default applies;
+- `nvim` installs its plugins and loads Gruvbox;
+- Git review targets the selected repository when Neovim was started in a non-Git parent directory, without changing `:pwd`;
+- the `+` and `*` registers round-trip ASCII, Arabic, CJK, accented and supplementary-plane text, multiline and empty content through a Windows application (paste removes every CR by design); only the real Windows boundary proves this, not the fixtures;
+- a vault note loads obsidian.nvim, if the vault is synced here;
+- Windows Terminal uses JetBrainsMono Nerd Font at size 9 and the Gruvbox scheme, with `Alt+Enter` unbound so it reaches the terminal application.
 
-- Confirm the core symlinks and local Git identity exist: `test -L ~/.bashrc && test -L ~/.config/starship.toml && test -L ~/.config/nvim/lua/config/options.lua && test -f ~/.config/git/config.local`
-- Start a fresh shell and confirm Bash and Starship load without errors; EyrWSL must not supply `tdw`, `tdl`, `tdlm`, `tsl`, `hdl`, `hdlm`, `hsl`, `hds`, or aliases `h`/`t`. A remaining host/user definition needs ownership review, not blanket removal. `command -v herdr` and `type hdw` must still resolve; preserve native Herdr configuration/keymap.
-- Start a fresh shell and confirm `alias claude c cx cy ic ix icx` reports no alias for any of them: EyrWSL does not supply Omarchy AI shortcuts, and the full tool commands use normal client configuration.
-- Open a disposable session with `herdr` and check the [Native Herdr](#native-herdr) layout, full agent/continuation commands, native names and AI focus. Repeated calls, including from a populated caller, a valid inactive source workspace and a generated bottom-right shell, must each create a new workspace; existing names/layouts must stay intact apart from global focus. Bare invocation shows usage; outside-Herdr and invalid-context calls refuse without server startup or attachment. Do not experiment in an existing working session.
-- On helper failure, inspect the original/new pane/tab/workspace context before manual cleanup. The new workspace/root must remain; only verified new split panes may be removed before possible input, never any workspace/tab/root/caller. Preserve uncertain state and older roots/recovery files. These multi-call operations are not server-side atomic transactions.
-- In a disposable Git fixture, check `ga <branch>` from a subdirectory and `gd` from the resulting linked worktree, including the normal shell's `cd` alias. `gd` confirms the actual path/branch, requires its HEAD to be contained in the primary worktree's current HEAD, refuses dirty work and never forces removal; a failed branch deletion reports that the branch was retained. The primary worktree need not be on a branch named `main`. Do not use a real working branch as a removal test.
-- With disposable local source/destination directories, start `rsw <source> <destination>`, note its PID/log path, and confirm changes during a transfer eventually arrive. Readiness is not sync success: inspect logs for transfer/monitor failures and retries. Reconciliation is checked between transfers, 60 seconds after the last successful completion. Monitor death stops the watcher after the current transfer returns and requires inspection/restart; a stalled transfer can delay this indefinitely. `lsw` and `dsw` manage only watchers started by this implementation; do not assume an older watcher stopped. No `--delete` is used, so destination-only files remain.
-- Confirm `mise ls claude opencode` lists an installed version of each tool, and `command -v claude opencode` resolves each one under `~/.local/share/mise` (interactive shells, through `mise activate`) or to its `~/.local/bin` wrapper; `make verify` fails when a tool is missing from mise or resolves elsewhere.
-- Confirm `mise settings get paranoid` prints `true` and `mise settings get minimum_release_age` reports that the setting is not set, so the 24-hour default applies; `make verify` checks paranoid mode in full mode.
-- Run `nvim` once and confirm plugins install successfully and Gruvbox loads.
-- Check Git review from files in two repositories and from a selected Neo-tree repository folder while the editor was launched in their non-Git parent; `Space g d` and `Space g s` must target the selection without changing `:pwd`.
-- In Neovim, verify both `+` and `*` registers with disposable ASCII, Arabic/CJK, accented and supplementary-plane text through a Windows application, including multiline/CRLF, empty contents, and trailing newlines. Paste strips every CR, normalizing CRLF to LF; this is not byte-for-byte preservation. The provider uses PowerShell with explicit UTF-8 and no profile for both directions, not `clip.exe`. Do not inspect pre-existing clipboard content; mocks are not evidence that this Windows boundary passed.
-- If the vault is synced to this machine, open a vault note and confirm obsidian.nvim loads (`<leader>oo` opens the note switcher).
-- Confirm Windows Terminal uses JetBrainsMono Nerd Font at size 9 and the Gruvbox color scheme after applying `windows-terminal/settings.json`.
-- Keep Windows Terminal `Alt+Enter` unbound (`"id": null`) so it passes through to the terminal application rather than toggling fullscreen. Omarchy's Herdr map uses this key too; tmux retirement does not call for a settings change or deployment.
+The fixture tests model Herdr, Stow, the sync helper's processes and the Windows side in fake homes; they do not replace a check on the real host. `RSW_FIXTURE_REALTIME=1 bash tests/rsyncing.sh` runs the sync fixture at its real 60-second interval. GitHub Actions runs `make lint check` and an exact twin-pair check against EyrArcHy's default branch on every push to `main` and every pull request, in an `archlinux:base` container as an unprivileged user; it does not deploy to a host.
 
-CI runs `make lint`, `make check`, and `twins-pair` on pushes to `main` and pull requests, using the peer default branch for normal runs. Manual workflow dispatch accepts an explicit full `peer_commit` only with `peer_reviewed=true`; it fetches peer objects without executing peer code and records both actual commits. This attestation is not publication authorization. For coordinated changes, verify the final published pair explicitly after both commits are available; a green check against an earlier peer is not final-pair evidence. Local `make twins` remains a worktree convenience check that can skip a missing sibling.
+## Make Targets
 
-CI uses the official `archlinux:base` container with a full signed-package upgrade, matching the Arch userspace of both supported hosts. `ubuntu-latest` supplies only GitHub's VM. Checks run as an unprivileged `ci` user with explicit Bash, a private temporary directory and container process reaping; checkout credentials are not persisted. CI does not perform or attest deployment to Omarchy or WSL.
+| Target | Does |
+| --- | --- |
+| `make dry-run` | Preview Stow's links |
+| `make stow`, `make restow`, `make unstow` | Deploy, redeploy or remove the packages (WSL only) |
+| `make clean` | Guarded preparation: remove only folded, dangling or retired links this clone owns; refuse on anything else (WSL only) |
+| `make lint`, `make check`, `make test` | Repository checks and the fixture tests |
+| `make verify` | Repository, deployment, tool and interop checks (WSL only) |
+| `make twins` | Compare the twin files with the EyrArcHy clone (`SIBLING`, default `~/Projects/eyrie/eyrarchy`); a missing sibling is skipped |
+| `make twins-pair SELF_COMMIT=<sha> PEER_COMMIT=<sha> SIBLING=<path>` | Compare the twin files at two exact full commit IDs, without running the peer's code |
+| `make refs-plan`, `make refs` | Preview, then refresh the reference clones in [`references.txt`](../references.txt) |
+| `make wt-diff` | Compare the tracked Windows Terminal settings with the deployed file |
+| `make wt-push` | Deploy the reviewed settings file, backing up the previous one ([setup](setup.md#12-windows-terminal)) |
 
-## Maintenance
+Deployment goals in one Make invocation run serially, even under `make -j`; this is not a transaction against disk failure or a second concurrent deployment.
 
-A repo-root `Makefile` keeps the package list in one place and wraps the routine commands. `stow`, `unstow`, `restow`, `clean`, `verify`, and `wt-push` run on the WSL machine; `lint`, `check`, `twins`, `twins-pair`, and `refs` run anywhere:
+**Twin pairs in CI.** A manual workflow run accepts an explicit `peer_commit` only with `peer_reviewed=true`, fetches the peer's objects without executing its code, and records both commits. For a coordinated change, check the final published pair once both commits are available; a green check against an earlier peer is not evidence for the final pair.
 
-- `make stow` / `make unstow` / `make dry-run` / `make restow` - the stow command sets over the package list, without directory folding
-- `make lint` - ShellCheck 0.11.0 or newer over the bash package, `scripts/`, and `tests/`; `.shellcheckrc` disables the upstream-derived warnings so new issues stand out
-- `make check` - repository-only checks: `scripts/verify.sh` in `repo` mode over every owned config, then every fixture suite (runs in CI)
-- `make twins` - twin-file sync against the EyrArcHy clone (`SIBLING`, default `~/Projects/eyrie/eyrarchy`); a missing sibling is reported as a skipped check
-- `make twins-pair SELF_COMMIT=<full-sha> PEER_COMMIT=<full-sha> SIBLING=<peer-object-repo>` - read-only twin comparison of two exact full 40-character commit IDs; all three inputs remain literal data, missing objects/files fail, and no peer code executes. Replace the placeholders and quote the peer path; do not type angle brackets
-- `make verify` - `lint`, `check`, and `twins`, then `scripts/verify.sh` in `full` mode (host, command baseline, mise-managed AI tools, deployment with real managed parents, no-reply identity, and every owned config); refuses off the WSL host
-- `make test` - fake-home deployment, ownership, verifier, Windows Terminal, and reference-clone fixtures; the loop stops on the first failing suite
-- `make clean` - WSL-only guarded stow preparation (`scripts/prepare-stow.sh`); owned folds, recognized dangling active-package clone links and exact retired links only, aborts before removing anything otherwise; run before preview/restow when retiring links
-- `make refs` - clone and fast-forward listed references to exact fetched upstream parity, repointing moved GitHub remotes; report and keep stale clones, never auto-delete them (`/omasync` step 1)
-- `make wt-diff` - diff the tracked Windows Terminal settings against the deployed Windows-side file (normalized with `jq`, since Windows Terminal rewrites key order)
-- `make wt-push` - after full-file review/approval, require active WSL2/interop and deployed-clone ownership, validate both settings files, back up a changed deployment, and atomically deploy the tracked file; direct `scripts/wt-diff.sh --push` has the same guard
+**Reference clones.** Approve a new clone or a remote repointing that `make refs-plan` shows before running `make refs`. The refresh fast-forwards listed default branches to the fetched upstream and refuses branches that are ahead or diverged; its fetch keeps existing local tags, imports new ones and prunes only origin tracking branches, and checkout never overwrites ignored files. It may include the EyrArcHy peer when selected, never arbitrary neighboring repositories. Conflicts refuse for separate review, and stale clones are reported and kept.
 
-Every host-writing Make target checks host and deployed-clone ownership before mutation. Deployment goals are serialized within one Make invocation, including `make -j`; this is not rollback against I/O failure or independent concurrent deployments.
+## Updates
 
-Before running `make refs`, preview with `make refs-plan` and approve any new clone or remote repointing separately. The preview can query GitHub but does not fetch or establish conflict-free upstream parity. Routine authorized refreshes remain the sync skill's work; atomic fetch does not make the whole host-pair update transactional.
+`sudo pacman -Syu` updates the system, including mise itself. `mup` (`mise up`) then updates Claude Code and OpenCode, once a release is a day old under mise's default cooldown; the tools change version only through mise.
 
-`make refs` refuses ahead-only/divergent listed default branches instead of calling them current. Its atomic, non-forced fetch preserves existing local tags and annotations, imports new tags, and prunes only origin tracking branches. Checkout and merge use `--no-overwrite-ignore`, preserving ignored files in listed clones. Tag/file conflicts refuse that update and require separate review; do not force a tag replacement or delete local files to make it pass. Stale references are informational and require separate review of all refs, stashes, and ignored/untracked files before any manual removal.
+`nvim/.config/nvim/lazy-lock.json` is generated but tracked. Change it only through an intentional Lazy sync, review the pinned revisions, check a clean headless bootstrap, and commit it with the plugin change that required it.
 
-Direct `scripts/wt-diff.sh --push` also checks host/clone ownership before discovering or reading the Windows destination. The diff-only mode remains read-only; the full-file replacement still requires explicit review as described in [Setup](setup.md#12-windows-terminal).
+## Upstream Changes
 
-Updates run in two steps, as Omarchy's updater does in one: `sudo pacman -Syu` updates the system, mise itself included (the packaged mise cannot self-update and says so when asked), and never touches the mise-managed tools; `mup` then brings Claude Code and OpenCode current, the `mise up` call Omarchy runs after its package step, here without Omarchy's cooldown override, so a release counts once it is a day old. Under mise, Claude Code's native auto-updater is not in play; the tools change version only through mise.
-
-`nvim/.config/nvim/lazy-lock.json` is generated but tracked. Update it only through an intentional Lazy sync, review the pinned revision changes, verify a clean headless bootstrap, and commit the lockfile with the plugin-spec change that required it.
-
-Periodically, review the local reference repos and official docs for upstream changes to owned packages, sync with `/omasync` or a manual comparison, and confirm every intentional difference is still documented in `DEVIATIONS.md`. Unresolved decisions, deferred work, active limitations, and dated evidence live in [docs/maintenance.md](maintenance.md).
+Periodically, and after an Omarchy baseline change, run `/omasync` to compare the owned packages with Omarchy and the WSL and Windows Terminal documentation, confirm every difference is still documented in DEVIATIONS.md, and run `make verify`.
