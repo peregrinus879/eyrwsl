@@ -356,7 +356,7 @@ cd ~
 ~/.local/bin/opencode --version
 ```
 
-Each downloads on first use, then prints its version. The wrappers run `mise use -g`, which installs under `~/.local/share/mise` and records the `latest` selection in the host-local `~/.config/mise/config.toml`; that file stays out of every package. They keep mise's 24-hour release cooldown, as does `mup` (`mise up`). Never run them with `sudo`. In a fresh tab, **Arch user:**
+Each downloads on first use, then prints its version. The wrappers run `mise use -g`, which installs under `~/.local/share/mise` and records the `latest` selection in the host-local `~/.config/mise/config.toml`; that file stays out of every package. They keep mise's 24-hour release cooldown, as do `mup` (`mise up`) and `wsl-update`. Never run them with `sudo`. In a fresh tab, **Arch user:**
 
 ```bash
 mise ls claude opencode

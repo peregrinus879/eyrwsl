@@ -1,0 +1,18 @@
+# wsl-update: one pass over the three channels that update this host, in the
+# order Omarchy's omarchy-update follows, scoped to what EyrWSL uses: official
+# packages through pacman (which also carries mise itself), the mise-managed AI
+# clients through mise up (mise's release cooldown applies), and Herdr through
+# its own installer channel, last, because its update may hand the running
+# server over or ask for a restart. Stops at the first failure, so a
+# half-finished package transaction is never followed by tool updates. Run it
+# in a normal-user shell: pacman asks for your password and confirmation. The
+# mup alias runs the mise step alone.
+wsl-update() {
+  if (($#)); then
+    printf 'usage: wsl-update\n' >&2
+    return 64
+  fi
+  sudo pacman -Syu || return
+  mise up || return
+  herdr update
+}

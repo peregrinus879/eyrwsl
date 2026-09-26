@@ -95,7 +95,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - Shell initialization removes inherited `$HOME/.opencode/bin` entries and appends user-level directories after system entries: `/usr/local/bin`, mise shims and `~/.local/bin`.
 - AI clients load their normal user configuration. EyrWSL carries no Omarchy AI launch aliases (`c`, `cx`, `cy`, `ic`, `ix`, `icx`); `hdw` sends full `claude` or `opencode` commands with only the selected continuation form, so the clients start with their normal permission prompts, without the stock aliases' auto-approval flags (`opencode --auto`, `claude --permission-mode auto`). Its `cc`/`oc` arguments are not aliases or an isolated harness profile. ArcHy's stock shortcut flags apply only to those stock launches, not `hdw`.
 - Omarchy's mise shell handling is adopted verbatim: `mise activate bash` opens `init`, `set +h` closes `shell`, and the `mup` alias is carried as plain `mise up`, without Omarchy's `MISE_MINIMUM_RELEASE_AGE=0` prefix (see Mise). Omarchy also sources its PATH bootstrap from `/etc/profile.d` and PAM so login shells and SSH commands find the mise tools; here `envs` is the only source, so shells that skip `.bashrc` (`wsl.exe -e`, SSH commands) see the mise directories only when the system PATH already has them.
-- No `pacman` alias and no AUR helper. Omarchy routes updates through `omarchy-update`, which is Hyprland/desktop-bound and runs `mise up` after its package step; this repo uses plain `pacman -Syu` against official repos only, which carries the packaged mise, followed by `mup` for the mise-managed tools.
+- No `pacman` alias and no AUR helper. Omarchy routes updates through `omarchy-update`, which is Hyprland/desktop-bound and runs `mise up` after its package step; this repo's `wsl-update` function runs plain `pacman -Syu` against official repos only, which carries the packaged mise, then `mise up` for the mise-managed tools and `herdr update` for the installer-managed Herdr, stopping at the first failure and without Omarchy's snapshot, migration, AUR and orphan steps; `mup` runs the mise step alone.
 
 ### Git
 
@@ -135,7 +135,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - `mise` comes from the official `extra` repository instead of Omarchy's `mise-bin` package.
 - The two AI tools go through mise. Omarchy's other mise-managed tools are omitted: the wrappers for `codex`, `gh`, `crush`, `gemini`, `copilot`, `playwright`, `pi`, `omp`, `grok`, `ghui`, and `hunk` at the pin (`agy` replacing `gemini`, `hey`, `ori`, and the Hermes CLI since), the global Node runtime, and the language runtimes `omarchy-install-dev-env` adds on request; `gh` comes from the official `github-cli` package.
 - Omarchy's `~/Work/.mise.toml` and global Node.js install (`mise-work.sh`) are omitted. Claude Code and OpenCode use prebuilt binaries; Node.js is outside this terminal baseline.
-- `omarchy-update-mise` has no counterpart; `mup` is the update path, run by hand.
+- `omarchy-update-mise`'s counterpart is the mise step of `wsl-update`, which keeps the cooldown; `mup` runs that step alone.
 
 ### OpenCode
 
