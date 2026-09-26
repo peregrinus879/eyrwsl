@@ -167,6 +167,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 ### WSL Bootstrap
 
 - `/etc/wsl.conf` carries the default user and keeps Windows interop enabled, which the clipboard integration requires.
+- `/etc/binfmt.d/WSLInterop.conf` carries WSL's own `WSLInterop` registration line so `systemd-binfmt.service` runs at every start. Arch ships no `binfmt.d` files, so the service is otherwise skipped, WSL's generated drop-in that re-registers the handler inside it never runs, and terminating a systemd distribution clears the kernel's single `binfmt_misc` table (observed with WSL 2.6.3 and kernel 6.6.87.2).
 - The [setup guide](docs/setup.md) separates Windows/PowerShell, Arch root bootstrap, and normal-user setup. It covers stable WSL, official Arch installation and checksum-checked image fallback, Windows Terminal and fonts, preserved host settings, locale, no-reply identity, and preservation-first deployment/upgrades. [Operations](docs/operations.md) owns usage and verification; the README remains the overview. Client configuration is independent, and actual-host evidence stays pending in the maintenance ledger.
 - The WSL baseline includes `inetutils` for the `hostname` host gate, `lua` for EyrWSL's fail-closed syntax verification, `tree-sitter-cli` for LazyVim, and `man-db`/`man-pages` for local documentation. The official `mise` package installs and updates the AI terminal tools through the stowed wrappers.
 - Yazi media helpers are optional official packages, not hidden baseline dependencies.

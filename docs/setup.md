@@ -134,6 +134,13 @@ appendWindowsPath = true
 
 Interop lets Linux run Windows executables, and `appendWindowsPath` makes `powershell.exe` and `clip.exe` resolvable. This is a Linux file, distinct from Windows' `.wslconfig`; [Microsoft's reference](https://learn.microsoft.com/en-us/windows/wsl/wsl-config) documents both.
 
+WSL runs Windows executables through a `WSLInterop` handler in the kernel's `binfmt_misc` table and re-registers it from `systemd-binfmt.service`. Arch ships no `binfmt.d` files, so that service is skipped and the handler is lost whenever the distribution terminates. Give the service a file to act on, with WSL's own registration line. **Arch root:**
+
+```bash
+mkdir -p /etc/binfmt.d
+printf ':WSLInterop:M::MZ::/init:P\n' > /etc/binfmt.d/WSLInterop.conf
+```
+
 Type `exit`, then restart Arch to apply it. Termination stops every Arch process and discards unsaved work, but deletes nothing and leaves other distributions running; a new tab alone may reuse the running instance. **PowerShell:**
 
 ```powershell
@@ -483,7 +490,7 @@ Work in the clone your live links point to, not a second checkout. Keep uncommit
 git pull --ff-only
 ```
 
-The pull changes live configuration at once, before any restow. A refused fast-forward needs review, never a forced reset. Install any missing baseline packages with [step 4](#4-prerequisites)'s commands, then look for older AI launchers. **Arch user:**
+The pull changes live configuration at once, before any restow. A refused fast-forward needs review, never a forced reset. Confirm `/etc/binfmt.d/WSLInterop.conf` exists as in [step 2](#2-arch-user); an installation made without it loses Windows interop at each termination. Install any missing baseline packages with [step 4](#4-prerequisites)'s commands, then look for older AI launchers. **Arch user:**
 
 ```bash
 type -a claude opencode
@@ -604,7 +611,7 @@ command -v clip.exe powershell.exe
 powershell.exe -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()'
 ```
 
-Expect two paths and a version; the host check needs both, while Neovim's clipboard needs only `powershell.exe`. The probe proves execution, not clipboard correctness. If the commands are missing, check `enabled = true` and `appendWindowsPath = true` under `[interop]` in `/etc/wsl.conf`, make sure no shell overlay drops the Windows `PATH` entries, and restart Arch. Then test Neovim copy and paste with disposable text, including non-ASCII characters and several lines; never use existing clipboard contents.
+Expect two paths and a version; the host check needs both, while Neovim's clipboard needs only `powershell.exe`. The probe proves execution, not clipboard correctness. `cannot execute binary file` for a Windows command means the `WSLInterop` handler is unregistered, which `ls /proc/sys/fs/binfmt_misc` confirms; create the [binfmt.d file](#2-arch-user) if it is missing, then `sudo systemctl restart systemd-binfmt` re-registers the handler without a restart. If the commands are missing, check `enabled = true` and `appendWindowsPath = true` under `[interop]` in `/etc/wsl.conf`, make sure no shell overlay drops the Windows `PATH` entries, and restart Arch. Then test Neovim copy and paste with disposable text, including non-ASCII characters and several lines; never use existing clipboard contents.
 
 - **Terminal settings not found:** open the intended Terminal's settings file and use `WT_SETTINGS` as in [step 11](#11-windows-terminal), for both diff and push. Never create a settings file at a guessed path.
 - **Settings rejected as invalid JSON:** the helper needs strict JSON although Terminal accepts comments; keep the original and convert a copy. A failed push deploys nothing.
