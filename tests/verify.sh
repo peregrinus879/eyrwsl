@@ -111,6 +111,14 @@ clone_baseline bad-yazi
 printf '[mgr\n' >"$TMP/bad-yazi/repo/yazi/.config/yazi/yazi.toml"
 expect_failure "malformed Yazi TOML" run_verify "$TMP/bad-yazi" repo
 
+clone_baseline bad-herdr
+printf '[keys\n' >"$TMP/bad-herdr/repo/herdr/.config/herdr/config.toml"
+expect_failure "malformed Herdr TOML" run_verify "$TMP/bad-herdr" repo
+
+clone_baseline other-prefix
+sed -i 's/^prefix = "ctrl+space"$/prefix = "ctrl+b"/' "$TMP/other-prefix/repo/herdr/.config/herdr/config.toml"
+expect_failure "Herdr prefix drifted from Omarchy" run_verify "$TMP/other-prefix" repo
+
 clone_baseline bad-lua
 printf 'local =\n' >"$TMP/bad-lua/repo/nvim/.config/nvim/lua/config/options.lua"
 expect_failure "malformed Lua" run_verify "$TMP/bad-lua" repo

@@ -25,6 +25,8 @@ Start Herdr with `herdr` in a normal-user Arch shell. In a shell inside it, chan
 | `hdw oc` | OpenCode (`opencode`) |
 | `hdw oc -c` | OpenCode, continuing the last session (`opencode -c`) |
 
+Herdr runs Omarchy's keymap from the stowed `herdr/` package: `Ctrl+Space` is the prefix, Prefix then `?` lists every binding, `Alt+Enter` splits below and `Alt+Shift+Enter` beside, Prefix then `c`, `r` or `k` opens, renames or closes a tab, and the same keys with Shift do so for a workspace. After editing the package, Prefix then `q` or `herdr server reload-config` applies it to the running server.
+
 Each call creates and focuses a new workspace in the current directory: the AI client full-height on the left, Neovim top-right and a shell bottom-right, with the AI client focused. Call it again from any shell, including the new bottom-right one, to open another workspace; existing workspaces keep their names and layouts. Herdr's own controls handle navigation (`Ctrl+Space`, then `c` for a tab or `Shift+C` for a workspace). [DEVIATIONS.md](../DEVIATIONS.md#bash) holds the full contract, including how a failed call preserves state for inspection.
 
 **Claude Code background sessions.** A session sent to the background with `/bg`, or with *Move to background and exit*, keeps running under Claude Code's own daemon, independently of Herdr. While it runs, `claude -c` refuses with `Your most recent conversation is running in the background (session <uuid>)`. `claude agents` lists such sessions; `claude attach <id>` reopens one with its tasks intact, and `claude stop <id>` followed by `claude -c` continues it in the foreground.

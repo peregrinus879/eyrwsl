@@ -241,7 +241,7 @@ If package details print, install it with `sudo pacman -Syu --needed herdr`. Onl
 curl -fsSL https://herdr.dev/install.sh | sh
 ```
 
-It installs `~/.local/bin/herdr`; a warning that this directory is not yet on `PATH` is expected until EyrWSL is deployed. When a package appears later, review the move to it rather than installing a second copy.
+It installs `~/.local/bin/herdr`; a warning that this directory is not yet on `PATH` is expected until EyrWSL is deployed. When a package appears later, review the move to it rather than installing a second copy. Herdr's keymap and layout come with the packages in [step 7](#7-deploy), so do not launch it before deploying; a `~/.config/herdr/config.toml` that Herdr wrote on an earlier first run is a conflict to compare and move aside like `.bashrc`.
 
 Claude Code and OpenCode are installed in [step 8](#8-ai-clients) by EyrWSL's mise wrappers, so do not install their Pacman, native or npm versions.
 

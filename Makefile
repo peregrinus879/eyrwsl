@@ -6,7 +6,7 @@
 # a real directory and only leaf files are links.
 
 SHELL := /bin/bash
-PACKAGES := bash btop editorconfig fastfetch git mise nvim starship yazi
+PACKAGES := bash btop editorconfig fastfetch git herdr mise nvim starship yazi
 STOW := stow --no-folding -t ~
 
 # Twin files are byte-identical with EyrArcHy and synced manually. When the

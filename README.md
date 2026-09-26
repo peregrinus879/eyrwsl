@@ -7,6 +7,7 @@ An Omarchy-style terminal environment for **Arch Linux on WSL 2**, deployed with
 | Package | Adds |
 | --- | --- |
 | `bash/`, `starship/` | Bash and a Starship prompt, `hdw` for [Herdr](https://herdr.dev) workspaces, Git worktree helpers (`ga`, `gd`) and rsync watches (`rsw`, `lsw`, `dsw`) |
+| `herdr/` | Omarchy's Herdr keymap and layout: `Ctrl+Space` prefix, `Alt+Enter` splits, tabs and workspaces as on the desktop |
 | `nvim/` | A complete LazyVim configuration with a pinned plugin lockfile, repository-aware Git review, vault plugins, and a UTF-8 clipboard through Windows PowerShell |
 | `mise/` | Launchers that install and update Claude Code and OpenCode through [mise](https://mise.jdx.dev), in paranoid mode |
 | `git/`, `editorconfig/` | Shared Git and editor defaults; your identity stays in an untracked local file |

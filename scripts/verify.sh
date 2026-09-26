@@ -125,6 +125,11 @@ if [[ $mode == full ]]; then
   else
     problem "mise is not in paranoid mode (the stowed conf.d fragment is not in effect)"
   fi
+  if herdr config check >/dev/null 2>&1; then
+    ok "Herdr accepts the stowed configuration"
+  else
+    problem "herdr config check rejects the deployed ~/.config/herdr/config.toml"
+  fi
   for tool in clip.exe powershell.exe; do
     if command -v "$tool" >/dev/null; then
       ok "Windows interop command is available: $tool"
@@ -237,6 +242,7 @@ while IFS= read -r -d '' file; do
 done < <(find "$repo/nvim" -type f -name '*.lua' -print0)
 
 toml_files=(
+  herdr/.config/herdr/config.toml
   mise/.config/mise/conf.d/eyrwsl.toml
   starship/.config/starship.toml
   yazi/.config/yazi/yazi.toml
@@ -320,6 +326,12 @@ if HOME="$verify_home" XDG_CONFIG_HOME="$verify_home/.config" \
   ok "Git config parses"
 else
   problem "Git config failed to parse"
+fi
+
+if [[ $(<"$repo/herdr/.config/herdr/config.toml") == *'prefix = "ctrl+space"'* ]]; then
+  ok "Herdr carries Omarchy's prefix"
+else
+  problem "Herdr configuration does not carry Omarchy's ctrl+space prefix"
 fi
 
 if [[ -f $repo/btop/.config/btop/btop.conf ]] &&
