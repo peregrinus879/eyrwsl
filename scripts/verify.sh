@@ -304,13 +304,14 @@ fi
 if jq -e '
   .defaultProfile == "archlinux"
   and .disabledProfileSources == ["Windows.Terminal.Wsl"]
-  and ([.profiles.list[] | select(.name == "archlinux")] | length == 0)
+  and ([.profiles.list[] | select(.name == "archlinux" and .source == "Microsoft.WSL" and .hidden == false
+        and (.guid | test("^[{][0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}[}]$")))] | length == 1)
   and .profiles.defaults.colorScheme == "Gruvbox"
   and .profiles.defaults.font.face == "JetBrainsMono Nerd Font"
   and .profiles.defaults.font.size == 9
   and .schemes[0].name == "Gruvbox"
 ' "$repo/windows-terminal/settings.json" >/dev/null 2>&1; then
-  ok "Windows Terminal selects the dynamic Arch profile and Omarchy terminal appearance"
+  ok "Windows Terminal carries the Arch profile entry and Omarchy terminal appearance"
 else
   problem "Windows Terminal profile or appearance contract is invalid"
 fi

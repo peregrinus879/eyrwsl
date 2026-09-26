@@ -396,7 +396,7 @@ make verify
 
 ### 11. Windows Terminal
 
-This step is a separate, explicit Windows deployment. **The tracked file replaces the whole Terminal settings file; it is not a theme merge.** It sets defaults for every profile, the keybindings, menu visibility (hiding Windows PowerShell) and `archlinux` as the default profile. Save any custom profiles, themes and shortcuts you want to keep, and review them against the tracked file first.
+This step is a separate, explicit Windows deployment. **The tracked file replaces the whole Terminal settings file; it is not a theme merge.** It sets defaults for every profile, the keybindings, menu visibility (hiding Windows PowerShell, Command Prompt and Azure Cloud Shell, so only `archlinux` is offered) and `archlinux` as the default profile. Save any custom profiles, themes and shortcuts you want to keep, and review them against the tracked file first.
 
 Open Terminal's settings file through **Settings > Open JSON file** (or Shift with **Settings** in the tab dropdown), note its path, and close the editor so it cannot save over the deployment; `defaults.json` is generated and never edited. Compare. **Arch user, in the clone:**
 
@@ -424,7 +424,7 @@ The helper accepts strict JSON, with an optional UTF-8 byte-order mark, but no c
 
 To roll back, close the settings editor, keep a copy of the current file, and copy the exact backup the helper printed over its neighboring `settings.json` in File Explorer. The rolled-back file then shows drift from the tracked one, as intended.
 
-**Checkpoint:** a new window opens `archlinux` as your normal user, in JetBrainsMono Nerd Font at size 9 with Gruvbox. The file expects current WSL's `Microsoft.WSL` dynamic profile and disables the legacy `Windows.Terminal.Wsl` generator. A save from the Settings UI can write generated profiles into the file; review `make wt-diff` before restoring. Then complete the manual [Verify](operations.md#verify) checks, including the clipboard.
+**Checkpoint:** a new window opens `archlinux` as your normal user, in JetBrainsMono Nerd Font at size 9 with Gruvbox. The file carries the `archlinux` profile WSL generates, with this distribution's GUID, and disables the legacy `Windows.Terminal.Wsl` generator; after a reinstall of the distribution, replace the GUID with the one in WSL's fragment under `%LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\Microsoft.WSL`. A save from the Settings UI can write generated profiles into the file; review `make wt-diff` before restoring. Then complete the manual [Verify](operations.md#verify) checks, including the clipboard.
 
 ### 12. GitHub
 
