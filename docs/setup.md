@@ -484,7 +484,7 @@ git -C ~/Projects/eyrie/eyrwsl status --short --branch
 readlink -f ~/.bashrc
 ```
 
-Work in the clone your live links point to, not a second checkout. Keep uncommitted and untracked work; reconcile local commits or ownership errors first, and never reset, stash automatically or delete to get a clean update. Read the [maintenance ledger](maintenance.md) and any [handoff](handoff.md) for pending host work. With the clone clean, **Arch user, in the clone:**
+Work in the clone your live links point to, not a second checkout. Keep uncommitted and untracked work; reconcile local commits or ownership errors first, and never reset, stash automatically or delete to get a clean update. Read the [maintenance ledger](maintenance.md) for pending host work. With the clone clean, **Arch user, in the clone:**
 
 ```bash
 git pull --ff-only

@@ -42,7 +42,6 @@ Keep the clone in the Linux filesystem: it is live configuration. Inside Herdr, 
 | Daily use, checks and Make targets | [Operations](docs/operations.md) |
 | What differs from Omarchy, and why | [DEVIATIONS.md](DEVIATIONS.md) |
 | Keys, commands and workflows, offline | [EyrAgents workspace guide](https://github.com/peregrinus879/eyragents/blob/main/docs/workspace-guide.html) (download the raw file) |
-| Work pending on the WSL host | [Handoff](docs/handoff.md) |
 | Open work | [Maintenance ledger](docs/maintenance.md) |
 | Reconcile with Omarchy, WSL and Windows Terminal | [omasync](.agents/skills/omasync/SKILL.md) |
 | Rules for agents changing this repository | [AGENTS.md](AGENTS.md) |

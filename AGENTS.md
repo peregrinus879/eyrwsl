@@ -15,7 +15,6 @@ Claude Code (2.1.277 or later) and OpenCode read this file natively as the proje
 | [DEVIATIONS.md](DEVIATIONS.md) | Every intentional difference from Omarchy, its reason, and the behavior contracts of `hdw`, the Git and sync helpers, the clipboard and the launchers |
 | [Setup](docs/setup.md) | Windows and WSL installation, deployment, GitHub access and recovery |
 | [Operations](docs/operations.md) | Daily use, verification and Make targets |
-| [Handoff](docs/handoff.md) | Concrete steps pending on the WSL host; read it before project-path, AI-tool or package work |
 | [Maintenance ledger](docs/maintenance.md) | Open work only; read it before package, WSL or Windows Terminal changes |
 | [`omasync`](.agents/skills/omasync/SKILL.md) | Reconciliation with Omarchy, WSL and Windows Terminal upstreams |
 | `Makefile`, script headers, tests | The package list, twin list, local constraints and checked contracts |
