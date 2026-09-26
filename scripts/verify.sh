@@ -256,11 +256,11 @@ for relative in "${toml_files[@]}"; do
   fi
 done
 
-if python3 -c 'import sys,tomllib; sys.exit(0 if tomllib.load(open(sys.argv[1], "rb")).get("settings", {}).get("paranoid") is True else 1)' \
+if python3 -c 'import sys,tomllib; s = tomllib.load(open(sys.argv[1], "rb")).get("settings", {}); sys.exit(0 if s.get("paranoid") is True and s.get("upgrade", {}).get("auto_prune") is False else 1)' \
   "$repo/mise/.config/mise/conf.d/eyrwsl.toml" 2>/dev/null; then
-  ok "mise conf.d fragment enables paranoid mode"
+  ok "mise conf.d fragment enables paranoid mode and keeps upgrades from pruning"
 else
-  problem "mise conf.d fragment does not enable paranoid mode"
+  problem "mise conf.d fragment must set paranoid = true and upgrade.auto_prune = false"
 fi
 
 bootstrap_files=(

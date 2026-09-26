@@ -4,7 +4,7 @@
 
 This document records the intentional differences carried by EyrWSL relative to [Omarchy](https://github.com/omacom/omarchy), and defines the boundary between this repo and its siblings.
 
-Omarchy tag `v4.0.0` at commit `f0020448ca87329199de7cb12f2015ebc4a3e5e7` is the reproducible upstream comparison baseline. The lightweight tag names the release, while the commit ID records the exact reviewed source. Reference clones and the tag are maintenance inputs only; setup, Stow deployment, and verification do not use them.
+Omarchy tag `v4.0.4` at commit `c668141e9c42b13c80c9ca4ea108e11708c5e8a5` is the reproducible upstream comparison baseline. The lightweight tag names the release, while the commit ID records the exact reviewed source. Reference clones and the tag are maintenance inputs only; setup, Stow deployment, and verification do not use them.
 
 ## Deviation Policy
 
@@ -83,6 +83,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - Config location is `~/.config/bash/` using an XDG-style layout instead of Omarchy's internal default path.
 - Modular shell functions live in `~/.config/bash/functions/` and are sourced via a loop in `.bashrc`.
 - Optional Bash overlays are sourced from `~/.config/bash-overlays/*` after the shared init. The directory is untracked and reserved for machine-local additions.
+- `init` keeps Omarchy's mise activation and Starship prompt but drops the `try` helper and Omarchy's command completions, which need the Omarchy binaries; its Starship guard omits Omarchy's interactive test because `.bashrc` already returns for non-interactive shells. `envs` sets `EDITOR` to `nvim` and no `BROWSER`, where Omarchy points both at its desktop launchers.
 - Dropped aliases: `open` (GUI-only), `d='docker'`, and `r='rails'`.
 - The kitty-conditional `ff` image-preview variant is omitted; Windows Terminal is not kitty, so the conditional would always take the plain `bat` branch kept here.
 - `y()` is added for Yazi cd-on-exit support. Yazi is not part of Omarchy.
@@ -103,6 +104,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - `[init] defaultBranch = main` replaces Omarchy's `master`.
 - Inline option comments are removed because the same intent is captured in this file. Omarchy keeps inline comments next to each option.
 - Private Git identity is intentionally not tracked. WSL uses the untracked local file `~/.config/git/config.local` for `[user]` name and email.
+- `~/.config/git/ignore` is an EyrWSL addition: it ignores `.claude/settings.local.json`, the per-checkout Claude Code permission file, in every repository; Omarchy configures no global ignore file.
 
 ### Starship
 
@@ -121,6 +123,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 - The `nvim/` package owns the complete LazyVim bootstrap, static configuration, and generated `lazy-lock.json`; setup requires no separate Neovim configuration clone.
 - `all-themes.lua` and `omarchy-theme-hotreload.lua` are omitted because Neovim uses a fixed Gruvbox configuration.
 - Kept verbatim from `omarchy-nvim`: `disable-news-alert.lua`, `snacks-animated-scrolling-off.lua`, `vim.opt.relativenumber = false`, and `vim.g.autoformat = false`.
+- Omarchy's `lua/config/remote_clipboard.lua` (package 2026.9.21), which routes copies through Wayland, tmux or OSC 52 inside tmux, SSH and Herdr sessions, is omitted together with its `options.lua` call: under WSL the PowerShell provider above serves every session, and Wayland and tmux do not apply.
 - `transparency.lua` content is verbatim from `omarchy-nvim` but lives at `after/plugin/` instead of upstream's `plugin/after/` to use Neovim's actual after-load mechanism. Upstream `omarchy-nvim` uses the incorrect path.
 - Owned Lua files use 2-space indentation per the shared `.editorconfig` in this repo. Upstream `omarchy-nvim` uses tabs. Contents are otherwise unchanged.
 - The vault plugin specs are `obsidian.lua` (obsidian.nvim against the vault at `~/Projects/vault`, override with `OBSIDIAN_VAULT`) and `render-markdown.lua` (visual markdown rendering companion). `python` is in the baseline package list because the vault keybindings shell out to the vault's `normalize.py`.
@@ -130,10 +133,10 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 ### Mise
 
 - The `mise/` package stows two AI wrappers into `~/.local/bin`. Claude Code and OpenCode retain the `omarchy-mise-install` form minus its cooldown override. Omarchy regenerates its wrappers; EyrWSL deploys its wrappers with Stow. `~/.config/mise/config.toml` and `~/.local/share/mise` remain host state.
-- The release cooldown stays at mise's 24-hour `minimum_release_age` default in the wrappers and `mup`. Omarchy sets it to zero in exactly two places, its generated wrappers and `omarchy-update-mise`, so an AI tool release is usable the hour it ships, while every other tool it installs through mise (the default agent, Node, the dev-env runtimes) waits out the default; this repo keeps the default everywhere and accepts the day's delay as the supply-chain guard mise documents it as.
+- The release cooldown stays at mise's 24-hour `minimum_release_age` default in the wrappers and `mup`. Omarchy sets it to zero in exactly two places, its generated wrappers and `omarchy-update-mise`, so an AI tool release is usable the hour it ships, while every other tool it installs through mise (the default agent, Node, the dev-env runtimes) waits out the default; this repo keeps the default everywhere and accepts the day's delay as the supply-chain guard mise documents it as. Omarchy's `upgrade.auto_prune = false`, added in 4.0.4 so `mise up` never prunes the version a running client executes from, is adopted in the stowed fragment.
 - Paranoid mode is on through the stowed `~/.config/mise/conf.d/eyrwsl.toml`. Omarchy runs mise with default trust and trusts `~/Work/.mise.toml` and every worktree automatically; here global configs stay implicitly trusted and every project-level config needs an explicit `mise trust`, prompted again when the file changes.
 - `mise` comes from the official `extra` repository instead of Omarchy's `mise-bin` package.
-- The two AI tools go through mise. Omarchy's other mise-managed tools are omitted: the wrappers for `codex`, `gh`, `crush`, `gemini`, `copilot`, `playwright`, `pi`, `omp`, `grok`, `ghui`, and `hunk` at the pin (`agy` replacing `gemini`, `hey`, `ori`, and the Hermes CLI since), the global Node runtime, and the language runtimes `omarchy-install-dev-env` adds on request; `gh` comes from the official `github-cli` package.
+- The two AI tools go through mise. Omarchy's other mise-managed tools are omitted: the wrappers for `codex`, `crush`, `gemini`, `gh`, `copilot`, `playwright`, `pi`, `omp`, `grok`, `cursor-agent`, `ghui`, `hunk`, the Hermes CLI and `muse` at the pin, the global Node runtime, and the language runtimes `omarchy-install-dev-env` adds on request; `gh` comes from the official `github-cli` package.
 - Omarchy's `~/Work/.mise.toml` and global Node.js install (`mise-work.sh`) are omitted. Claude Code and OpenCode use prebuilt binaries; Node.js is outside this terminal baseline.
 - `omarchy-update-mise`'s counterpart is the mise step of `wsl-update`, which keeps the cooldown; `mup` runs that step alone.
 

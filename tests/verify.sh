@@ -165,6 +165,10 @@ clone_baseline not-paranoid
 printf '[settings]\nparanoid = false\n' >"$TMP/not-paranoid/repo/mise/.config/mise/conf.d/eyrwsl.toml"
 expect_failure "mise fragment without paranoid mode" run_verify "$TMP/not-paranoid" repo
 
+clone_baseline pruning
+printf '[settings]\nparanoid = true\n' >"$TMP/pruning/repo/mise/.config/mise/conf.d/eyrwsl.toml"
+expect_failure "mise fragment without auto_prune off" run_verify "$TMP/pruning" repo
+
 clone_baseline non-wsl
 if HOME="$TMP/non-wsl/home" \
   VERIFY_MODE=fixture \

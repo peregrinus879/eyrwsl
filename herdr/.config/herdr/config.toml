@@ -1,4 +1,4 @@
-# Stowed by EyrWSL: Omarchy's config/herdr/config.toml at the v4.0.0 pin, verbatim
+# Stowed by EyrWSL: Omarchy's config/herdr/config.toml at the v4.0.4 pin, verbatim
 # below this header, plus onboarding = false, which Herdr writes after its first
 # run and would otherwise write through the link into the clone.
 onboarding = false

@@ -9,10 +9,6 @@ Open work only. Each item states what is open, why, and what closes it; when an 
 - **The WSL handoff.** The Projects layout, the retirement of local tmux, copied Herdr recipes, Codex and Hermes, GitHub HTTPS access, and EyrAgents' own changes are all waiting on the WSL host. [The handoff](handoff.md) is the single ordered procedure. Closes when every section of it succeeds and the file is deleted.
 - **Fresh-image onboarding.** The beginner setup and troubleshooting commands were checked for syntax and against their sources, not run on a fresh Windows and Arch image. Closes when a fresh-image install follows [setup](setup.md) end to end, or on a change to the upstream installation contract.
 
-## Upstream Work
-
-- **Move the Omarchy comparison pin.** DEVIATIONS.md and the `omasync` skill compare against Omarchy `v4.0.0`, while the packaged Omarchy was 4.0.2-1 on 2026-09-03 and 4.0.4-1 on 2026-09-25. The `mise/` wrappers already follow the newer `omarchy-mise-install` form, minus its cooldown override. Closes when `/omasync` compares the owned packages between `v4.0.0` and the current release on the WSL host, each difference is adopted or recorded, and the pin moves in DEVIATIONS.md and the skill.
-
 ## Open Decisions
 
 - **Vault note workflows.** Rename and promote do not yet support an explicit target, completion or reference-safe renaming. Closes only on H's request, coordinated across both twins and the vault project's own scripts.
@@ -26,6 +22,7 @@ Open work only. Each item states what is open, why, and what closes it; when an 
 | Vault image paste: the pinned obsidian.nvim 3.16.6 source has a WSL PowerShell image path, but real Windows clipboard and destination handling are unverified | [setup](setup.md#windows-integration) | a host check, or a change to the plugin's image-paste interface |
 | `hdw`'s checks protect cooperating calls, not a server-side atomic transaction; 22 real Herdr 0.8.2 cases passed in private namespaces, not on WSL | [DEVIATIONS](../DEVIATIONS.md#bash) | the helper, Herdr's CLI or schema, or its layout behavior changes |
 | Git review uses per-call file or explorer context (checked on Neovim 0.12.5 and Snacks `882c996`; WSL's pinned Neo-tree `5e076e5` has the same API; related upstream reports: [Snacks #1639](https://github.com/folke/snacks.nvim/issues/1639), [#2483](https://github.com/folke/snacks.nvim/issues/2483)) | [DEVIATIONS](../DEVIATIONS.md#neovim) | picker working-directory, root detection, Neo-tree state or LazyVim mappings change |
+| The vault spec's `notes_subdir`, `new_notes_location` and `note_id_func` options no longer appear in obsidian.nvim's configuration module on its main branch (checked 2026-09-26); the twin spec matches the pinned commit `69fe7c6` | [DEVIATIONS](../DEVIATIONS.md#neovim) | the lockfile moves obsidian.nvim, changed in both twins together |
 | The paired reference updater follows GitHub's canonical name without a pinned project identity, and can repoint `origin` before its dirty check | [operations](operations.md#make-targets) | fixed together in both twins, with rename, reused-ID and dirty-refusal tests |
 | Deployment is serial within one Make invocation, not a transaction; `twins-pair` attests committed twin files, not deployment or publication | [operations](operations.md#make-targets) | before concurrent deployments or a CI pair-protocol change |
 
