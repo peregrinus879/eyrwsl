@@ -109,7 +109,7 @@ Gruvbox follows Omarchy's behavior on each owned surface. Windows Terminal and b
 ### Starship
 
 - The prompt shows `hostname` only during SSH sessions so remote shells are visually distinct from local ones while keeping the local prompt minimal.
-- The `conflicted`, `up_to_date`, and `modified` Git status icons use Material Design Icons codepoints instead of Omarchy's Nerd Font private-use codepoints, matching the same broader-terminal-font compatibility rationale used for Fastfetch.
+- The `conflicted`, `up_to_date`, and `modified` Git status values are single spaces, suppressing their visible symbols for a minimal status display; the untracked marker remains visible. The format uses `$all_status` without `$ahead_behind`, so the configured divergence counts are not displayed.
 
 ### Native Herdr Only
 
