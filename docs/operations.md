@@ -114,7 +114,7 @@ Deployment goals in one Make invocation run serially, even under `make -j`; this
 
 ## Updates
 
-`wsl-update` runs the three update channels in order and stops at the first failure: `sudo pacman -Syu` for the system, including mise itself; `mise up` for Claude Code and OpenCode, once a release is a day old under mise's default cooldown; and `herdr update` for Herdr through its installer channel, last, since it may hand the running server over or ask for a restart. `mup` (`mise up`) runs the mise step alone. The tools change version only through these channels, and mise keeps the version a running client executes from, so an update never pulls a live session's binary away.
+Run `wsl-update` from an outside shell after detaching from Herdr; Herdr's updater refuses inside its own session. It runs the three update channels in order and stops at the first failure: `sudo pacman -Syu` for the system, including mise itself; `mise up` for Claude Code and OpenCode, once a release is a day old under mise's default cooldown; and `herdr update` for Herdr through its installer channel, last. Herdr can retain a compatible running server on its previous version; `herdr status client` and `herdr status server` distinguish the installed client from the running server, whose restart is a separate action. `mup` (`mise up`) runs the mise step alone. The tools change version only through these channels, and mise keeps the version a running client executes from, so an update never pulls a live session's binary away.
 
 `nvim/.config/nvim/lazy-lock.json` is generated but tracked. Change it only through an intentional Lazy sync, review the pinned revisions, check a clean headless bootstrap, and commit it with the plugin change that required it.
 
