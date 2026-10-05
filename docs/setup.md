@@ -134,12 +134,7 @@ appendWindowsPath = true
 
 Interop lets Linux run Windows executables, and `appendWindowsPath` makes `powershell.exe` and `clip.exe` resolvable. This is a Linux file, distinct from Windows' `.wslconfig`; [Microsoft's reference](https://learn.microsoft.com/en-us/windows/wsl/wsl-config) documents both.
 
-WSL runs Windows executables through a `WSLInterop` handler in the kernel's `binfmt_misc` table and re-registers it from `systemd-binfmt.service`. Arch ships no `binfmt.d` files, so that service is skipped and the handler is lost whenever the distribution terminates. Give the service a file to act on, with WSL's own registration line. **Arch root:**
-
-```bash
-mkdir -p /etc/binfmt.d
-printf ':WSLInterop:M::MZ::/init:P\n' > /etc/binfmt.d/WSLInterop.conf
-```
+On the checked WSL 3.0.1 baseline, WSL owns and protects Windows executable registration as described in [WSL bootstrap](../DEVIATIONS.md#wsl-bootstrap). Keep the default `protectBinfmt` setting. An existing installation carrying `/etc/binfmt.d/WSLInterop.conf` needs the [legacy interop migration](#legacy-interop-registration), not another registration file.
 
 Type `exit`, then restart Arch to apply it. Termination stops every Arch process and discards unsaved work, but deletes nothing and leaves other distributions running; a new tab alone may reuse the running instance. **PowerShell:**
 
@@ -503,7 +498,7 @@ Work in the clone your live links point to, not a second checkout. Keep uncommit
 git pull --ff-only
 ```
 
-The pull changes live configuration at once, before any restow. A refused fast-forward needs review, never a forced reset. Confirm `/etc/binfmt.d/WSLInterop.conf` exists as in [step 2](#2-arch-user); an installation made without it loses Windows interop at each termination. Install any missing baseline packages with [step 4](#4-prerequisites)'s commands, then look for older AI launchers. **Arch user:**
+The pull changes live configuration at once, before any restow. A refused fast-forward needs review, never a forced reset. After updating an older WSL installation, review the [legacy interop migration](#legacy-interop-registration). Install any missing baseline packages with [step 4](#4-prerequisites)'s commands, then look for older AI launchers. **Arch user:**
 
 ```bash
 type -a claude opencode
@@ -530,6 +525,42 @@ make -C /OLD/CLONE/PATH unstow
 ```
 
 Unstow removes only this repository's links, not the clone, host data or the Windows Terminal deployment; applications lack their configuration until you stow again. If the old clone is gone, `make clean` handles its dangling links; a live link into a different clone is resolved at that clone.
+
+### Legacy Interop Registration
+
+This migration applies to the checked WSL 3.0.1 baseline and the exact former EyrWSL rule. Confirm `wsl --version` in Windows PowerShell first; do not apply it to an older WSL version. [WSL bootstrap](../DEVIATIONS.md#wsl-bootstrap) owns the registration contract.
+
+Inspect `/etc/binfmt.d/WSLInterop.conf`. The former rule is a regular file containing only:
+
+```text
+:WSLInterop:M::MZ::/init:P
+```
+
+A different file, symlink or additional configuration under `/etc/binfmt.d`, `/run/binfmt.d`, `/usr/local/lib/binfmt.d` or `/usr/lib/binfmt.d` needs separate review. When only the exact former rule is present, preserve it outside every `binfmt.d` directory; even a `.bak` file inside one keeps the stock service's nonempty-directory condition true. **Arch user:**
+
+```bash
+sudo mv -T --update=none-fail -- /etc/binfmt.d/WSLInterop.conf /etc/WSLInterop.conf.pre-wsl3
+```
+
+This is silent on success and refuses an existing backup. Stop on an error; confirm the source is absent and the preserved file is present before proceeding. The move does not replace the already registered kernel handler. Save work in every distribution and Herdr session, then perform a full VM shutdown and cold start. **PowerShell:**
+
+```powershell
+wsl --shutdown
+wsl -d archlinux
+```
+
+The shutdown stops every WSL distribution and its processes. A distribution-only restart may retain the old registration while the shared VM remains alive. After the cold start, **Arch user:**
+
+```bash
+cat /proc/sys/fs/binfmt_misc/WSLInterop
+findmnt --target /proc/sys/fs/binfmt_misc/status -o TARGET,SOURCE,OPTIONS
+systemctl show systemd-binfmt.service -p ActiveState -p Result -p ConditionResult
+systemctl --failed --no-pager
+powershell.exe -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()'
+make -C ~/Projects/eyrie/eyrwsl verify
+```
+
+**Checkpoint:** the handler is enabled, its interpreter is `/init`, and its flags include both `F` and `P`; the status bind remains read-only. With no other binfmt configuration, the stock service is inactive with `ConditionResult=no` and is not failed. PowerShell execution and verification pass. Keep the backup until this checkpoint passes again after a later, separately scheduled `wsl --terminate archlinux` and relaunch. Cross-distribution survival remains upstream evidence unless tested with an existing peer.
 
 ### Existing Clones over SSH
 
@@ -624,7 +655,9 @@ command -v clip.exe powershell.exe
 powershell.exe -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()'
 ```
 
-Expect two paths and a version; the host check needs both, while Neovim's clipboard needs only `powershell.exe`. The probe proves execution, not clipboard correctness. `cannot execute binary file` for a Windows command means the `WSLInterop` handler is unregistered, which `ls /proc/sys/fs/binfmt_misc` confirms; create the [binfmt.d file](#2-arch-user) if it is missing, then `sudo systemctl restart systemd-binfmt` re-registers the handler without a restart. If the commands are missing, check `enabled = true` and `appendWindowsPath = true` under `[interop]` in `/etc/wsl.conf`, make sure no shell overlay drops the Windows `PATH` entries, and restart Arch. Then test Neovim copy and paste with disposable text, including non-ASCII characters and several lines; never use existing clipboard contents.
+Expect two paths and a version; the host check needs both, while Neovim's clipboard needs only `powershell.exe`. The probe proves execution, not clipboard correctness. For `cannot execute binary file`, inspect the `WSLInterop` entry under `/proc/sys/fs/binfmt_misc` and the installed WSL version; a missing, disabled or overridden handler needs diagnosis. On the checked baseline, follow [legacy interop migration](#legacy-interop-registration) when the old local rule remains. If the commands are missing, check `enabled = true` and `appendWindowsPath = true` under `[interop]` in `/etc/wsl.conf`, make sure no shell overlay drops the Windows `PATH` entries, and restart Arch. Then test Neovim copy and paste with disposable text, including non-ASCII characters and several lines; never use existing clipboard contents.
+
+On WSL 3.0.1, `systemd-binfmt.service` can report `Failed to flush binfmt_misc rules, ignoring: Read-only file system` because WSL protects the shared status control. [Upstream identifies this specific error as benign when functionality is unaffected](https://github.com/microsoft/WSL/issues/41226#issuecomment-5175341738). Check actual interop and the unit journal; other registration errors need their own diagnosis. Retain WSL's protection and the stock service's error handling rather than masking the service or ignoring every exit failure.
 
 - **Terminal settings not found:** open the intended Terminal's settings file and use `WT_SETTINGS` as in [step 11](#11-windows-terminal), for both diff and push. Never create a settings file at a guessed path.
 - **Settings rejected as invalid JSON:** the helper needs strict JSON although Terminal accepts comments; keep the original and convert a copy. A failed push deploys nothing.
