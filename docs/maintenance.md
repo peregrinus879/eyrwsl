@@ -7,6 +7,7 @@ Open work only. Each item states what is open, why, and what closes it; when an 
 ## Pending on the WSL Host
 
 - **Fresh-image onboarding.** The beginner setup and troubleshooting commands were checked for syntax and against their sources, not run on a fresh Windows and Arch image. Closes when a fresh-image install follows [setup](setup.md) end to end, or on a change to the upstream installation contract.
+- **Live configuration audit.** Repository checks do not inventory every host addition. On the WSL host, compare installed packages/tools and enabled services with setup, inspect explicitly selected nonsecret Bash overlays and additional Neovim files, confirm effective editor settings, and reconcile the actual Terminal profile/fragment before deployment. Run `make verify`, `make wt-diff` and the manual interop/clipboard checks. Closes with host evidence and dispositions for any undocumented differences; the repository review on Omarchy cannot establish live WSL parity.
 
 ## Open Decisions
 
