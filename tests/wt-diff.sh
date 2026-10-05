@@ -1,25 +1,54 @@
 #!/usr/bin/env bash
+# Exercise Windows Terminal deployment in an indexed scratch source/home,
+# including a source with no commits. Git-visible working files are the input;
+# missing files remain missing, including pending source retirements.
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 TMP=$(mktemp -d)
 trap 'rm -rf -- "$TMP"' EXIT
+# The source stays outside this newly allocated fixture root even when the
+# source itself is a staged-file export somewhere under /tmp.
+export TMPDIR="$TMP"
 shopt -s nullglob
 
-# Exercise the real deployment guards in a disposable clone and home only.
+fail() {
+  printf 'FAIL: %s\n' "$1" >&2
+  exit 1
+}
+
+# Keep fixture Git operations and the guard subprocesses off caller-selected
+# repositories and configuration. Every Windows destination stays in scratch.
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+unset GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
-git clone -q --shared -- "$ROOT" "$TMP/repo"
-for path in Makefile scripts/prepare-stow.sh scripts/wt-diff.sh windows-terminal/settings.json; do
-  cp -- "$ROOT/$path" "$TMP/repo/$path"
+git() {
+  command env -i PATH="$PATH" HOME="$TMP/git-home" XDG_CONFIG_HOME="$TMP/git-home/.config" \
+    GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git "$@"
+}
+[[ -n ${EYRWSL_PACKAGES:-} ]] || fail 'EYRWSL_PACKAGES is required'
+read -r -a packages <<<"$EYRWSL_PACKAGES"
+(( ${#packages[@]} )) || fail 'package list is empty'
+
+mapfile -d '' -t sources < <(git -C "$ROOT" ls-files -z --cached --others --exclude-standard -- \
+  .gitignore Makefile scripts/prepare-stow.sh scripts/wt-diff.sh tests/wt-diff.sh \
+  windows-terminal/settings.json "${packages[@]}")
+scan=$!; wait "$scan" || fail 'cannot enumerate source files'
+mkdir "$TMP/repo"
+for path in "${sources[@]}"; do
+  [[ -e $ROOT/$path || -L $ROOT/$path ]] || continue
+  mkdir -p "$TMP/repo/$(dirname -- "$path")"
+  cp -a -- "$ROOT/$path" "$TMP/repo/$path"
 done
-# Keep the guard's fixture tree consistent with pending source retirements.
-for path in bash/.config/bash/functions/herdr bash/.config/bash/functions/tdw bash/.config/bash/functions/tmux tmux/.config/tmux/tmux.conf; do
-  if [[ ! -e $ROOT/$path && ! -L $ROOT/$path && ( -e $TMP/repo/$path || -L $TMP/repo/$path ) ]]; then
-    git -C "$TMP/repo" rm -q -- "$path"
-  fi
-done
+git -C "$TMP/repo" init -q
+git -C "$TMP/repo" add -A
 SOURCE_ROOT=$ROOT
 ROOT="$TMP/repo"
+if [[ ${WT_DIFF_INDEX_CHILD:-0} == 1 ]]; then
+  [[ -f $ROOT/bash/.config/bash/functions/wt-fixture-untracked ]] || fail 'untracked source was lost'
+  [[ ! -e $ROOT/bash/.config/bash/functions/tdw && ! -L $ROOT/bash/.config/bash/functions/tdw ]] ||
+    fail 'pending source retirement was resurrected'
+fi
 export HOME="$TMP/home" PREPARE_STOW_KERNEL_RELEASE=6.6.0-microsoft-standard-WSL2
 mkdir "$HOME"
 export PREPARE_STOW_INTEROP_ROOT="$TMP/interop"
@@ -30,11 +59,6 @@ printf '#!/bin/bash\nexit 0\n' >"$TMP/interop-bin/powershell.exe"
 printf '#!/bin/bash\nexit 99\n' >"$TMP/interop-bin/clip.exe"
 chmod +x "$TMP/interop-bin/"*.exe
 export PATH="$TMP/interop-bin:$PATH"
-
-fail() {
-  printf 'FAIL: %s\n' "$1" >&2
-  exit 1
-}
 
 deployed="$TMP/settings.json"
 original="$TMP/original.json"
@@ -94,5 +118,20 @@ set +e
 status=$?
 set -e
 [[ $status == 2 ]] || fail "unsupported mode did not return usage status"
+
+if [[ ${WT_DIFF_INDEX_CHILD:-0} == 0 ]]; then
+  if git -C "$ROOT" rev-parse --verify HEAD >/dev/null 2>&1; then
+    fail 'indexed source unexpectedly has a commit'
+  fi
+  # The child source also has a pending tracked deletion and a new untracked
+  # package leaf. Its working files, not a commit or the index alone, must win.
+  printf '# retired fixture\n' >"$ROOT/bash/.config/bash/functions/tdw"
+  git -C "$ROOT" add -- bash/.config/bash/functions/tdw
+  rm -- "$ROOT/bash/.config/bash/functions/tdw"
+  printf '# untracked fixture\n' >"$ROOT/bash/.config/bash/functions/wt-fixture-untracked"
+  mkdir "$TMP/child-tmp"
+  WT_DIFF_INDEX_CHILD=1 TMPDIR="$TMP/child-tmp" bash "$ROOT/tests/wt-diff.sh"
+  printf 'ok: Windows Terminal fixture also passes from an uncommitted indexed source\n'
+fi
 
 printf 'ok: Windows Terminal push is validated, backup-first, and idempotent\n'
