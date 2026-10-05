@@ -8,6 +8,12 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 TMP=$(mktemp -d)
 trap 'rm -rf -- "$TMP"' EXIT
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+# The fixture builder writes Git state, so it must also ignore inherited
+# configuration injection and repository redirection before its first Git call.
+git() {
+  command env -i PATH="$PATH" HOME="$TMP/git-home" XDG_CONFIG_HOME="$TMP/git-home/.config" \
+    GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git "$@"
+}
 # A regression must never reach an installed tmux or a user server.
 mkdir "$TMP/bin"
 cat >"$TMP/bin/tmux" <<'SH'
@@ -76,6 +82,25 @@ HOME="$TMP/baseline/home" bash --noprofile --norc -c '
 expect_failure "full-mode path override" run_verify "$TMP/baseline" full
 expect_failure "missing verifier" run_verify "$TMP/baseline" repo eyrwsl-missing-verifier
 
+# Repo-only syntax validation must not follow host-local includes. The invalid
+# include is wholly within scratch, including when the verifier regresses.
+clone_baseline repo-host-include
+printf '[broken\n' >"$TMP/repo-host-include/home/.config/git/config.local"
+run_verify "$TMP/repo-host-include" repo >/dev/null || fail 'repo mode read a host-local Git include'
+expect_failure "invalid effective Git include" run_verify "$TMP/repo-host-include" fixture
+
+# Poison inputs are outside the fake HOME/repo but still within owned scratch.
+# They must not affect fixture reads, even if inherited from the calling shell.
+printf '[broken\n' >"$TMP/outside-fixture.config"
+GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=include.path GIT_CONFIG_VALUE_0="$TMP/outside-fixture.config" \
+  run_verify "$TMP/baseline" fixture >/dev/null || fail 'fixture read an inherited Git include'
+GIT_CONFIG_PARAMETERS="'user.email=fixture@example.invalid'" \
+  run_verify "$TMP/baseline" fixture >/dev/null || fail 'fixture accepted inherited Git parameters'
+mkdir "$TMP/outside-repo"
+git -C "$TMP/outside-repo" init -q
+GIT_DIR="$TMP/outside-repo/.git" GIT_WORK_TREE="$TMP/outside-repo" GIT_INDEX_FILE="$TMP/outside-repo/index" \
+  run_verify "$TMP/baseline" fixture >/dev/null || fail 'fixture Git was redirected to another repository'
+
 clone_baseline bad-identity
 : >"$TMP/bad-identity/home/.config/git/config.local"
 expect_failure "empty Git identity" run_verify "$TMP/bad-identity" fixture
@@ -83,6 +108,35 @@ expect_failure "empty Git identity" run_verify "$TMP/bad-identity" fixture
 clone_baseline personal-identity
 printf '[user]\n  name = Fixture User\n  email = fixture@example.invalid\n' >"$TMP/personal-identity/home/.config/git/config.local"
 expect_failure "Git identity outside the GitHub no-reply domain" run_verify "$TMP/personal-identity" fixture
+
+# Effective identity includes normal Git precedence, not only config.local.
+clone_baseline repository-identity
+git -C "$TMP/repository-identity/repo" config user.email fixture@example.invalid
+if out=$(run_verify "$TMP/repository-identity" fixture 2>&1); then
+  fail 'repository Git identity override was ignored'
+fi
+[[ $out == *'Git identity must resolve'* && $out != *'fixture@example.invalid'* ]] ||
+  fail 'identity refusal did not stay value-free'
+
+clone_baseline effective-noreply
+printf '[user]\n  name = Fixture User\n  email = fixture@example.invalid\n' >"$TMP/effective-noreply/home/.config/git/config.local"
+git -C "$TMP/effective-noreply/repo" config user.email fixture@users.noreply.github.com
+run_verify "$TMP/effective-noreply" fixture >/dev/null || fail 'valid effective repository identity was rejected'
+
+clone_baseline legacy-identity
+printf '[user]\n  email = fixture@example.invalid\n' >"$TMP/legacy-identity/home/.gitconfig"
+expect_failure "legacy global identity override" run_verify "$TMP/legacy-identity" fixture
+
+clone_baseline conditional-identity
+base="$TMP/conditional-identity"
+printf '[includeIf "gitdir:%s"]\n  path = %s\n' "$base/repo/.git" "$base/home/.config/git/project-identity" >"$base/home/.gitconfig"
+printf '[user]\n  email = fixture@example.invalid\n' >"$base/home/.config/git/project-identity"
+expect_failure "conditional Git identity override" run_verify "$base" fixture
+
+clone_baseline worktree-identity
+git -C "$TMP/worktree-identity/repo" config extensions.worktreeConfig true
+git -C "$TMP/worktree-identity/repo" config --worktree user.email fixture@example.invalid
+expect_failure "worktree Git identity override" run_verify "$TMP/worktree-identity" fixture
 
 clone_baseline folded
 rm -rf -- "$TMP/folded/home/.config/yazi"
@@ -329,8 +383,8 @@ if out=$(run_verify "$base" fixture 2>&1); then fail 'verifier trimmed a newline
 
 # Every command the verifier needs is present, but tmux does not even resolve.
 mkdir "$TMP/no-tmux"
-for tool in bash cmp cut diff dirname fastfetch find getent git id jq luac python3 readlink realpath sort stat; do
-  ln -s "$(command -v "$tool")" "$TMP/no-tmux/$tool"
+for tool in bash cmp cut diff dirname env fastfetch find getent git id jq luac python3 readlink realpath sort stat; do
+  ln -s "$(type -P "$tool")" "$TMP/no-tmux/$tool"
 done
 PATH="$TMP/no-tmux" run_verify "$TMP/baseline" fixture >/dev/null || fail 'verification requires tmux'
 PATH="$TMP/no-tmux" run_verify "$TMP/baseline" repo >/dev/null || fail 'repo verification requires tmux'

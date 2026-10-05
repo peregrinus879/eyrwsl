@@ -72,7 +72,9 @@ After any change:
 make lint check   # ShellCheck 0.11.0 or newer; every owned Bash, Lua, TOML, JSON, Git, btop and Fastfetch file; the fixture tests
 ```
 
-On the WSL host, after stowing or changing a package, `make verify` checks WSL 2 and Windows interop, runs `lint`, `check` and `twins`, then checks the deployment: retired links are gone, the command baseline, Claude Code and OpenCode installed through mise and resolving through it, mise in paranoid mode, every link resolving into this clone with real managed parents, a GitHub no-reply Git identity (without printing it), and every owned configuration file. It fails closed.
+On the WSL host, after stowing or changing a package, `make verify` checks WSL 2 and Windows interop, runs `lint`, `check` and `twins`, then checks the deployment: retired links are gone, the command baseline, Claude Code and OpenCode installed through mise and resolving through it, mise in paranoid mode, every link resolving into this clone with real managed parents, a GitHub no-reply Git identity from the normal effective configuration chain in this repository (without printing it), and every owned configuration file. It fails closed.
+
+Repository-only Git validation parses the tracked file without following includes. Fixture identity checks use scratch global configuration; the live check includes global, conditional, repository and worktree overrides. The identity check covers this repository, so use [setup's manual check](setup.md#7-deploy) in each project before committing.
 
 Then check by hand, in fresh sessions:
 

@@ -7,7 +7,8 @@
 # against a fake repo and home, never the live home), and repo (owned configs
 # only, runnable anywhere, including CI). Verifier tools fail closed in every
 # mode; the command baseline and interop commands are host facts checked in
-# full mode only.
+# full mode only. Git syntax checks never follow host includes; identity checks
+# use the repository's effective configuration, with fixture globals in scratch.
 set -euo pipefail
 
 # Roots are not line-oriented data. Reject unsupported controls without first
@@ -64,6 +65,15 @@ case $mode in
     ;;
 esac
 
+# Every fixture Git operation has a controlled environment, including source
+# enumeration. Inherited Git include/parameter and repository-redirection
+# variables must not redirect reads out of the fixture. Full mode remains native.
+git_command=(git)
+if [[ $mode == fixture ]]; then
+  git_command=(env -i PATH="$PATH" HOME="$verify_home"
+    XDG_CONFIG_HOME="$verify_home/.config" GIT_CONFIG_NOSYSTEM=1 git)
+fi
+
 if [[ $mode != repo ]]; then
   # Validate both caller spellings through the same read-only boundary used
   # by deployment. Normalizing either one first would hide a HOME symlink.
@@ -84,7 +94,7 @@ problem() {
 }
 
 # Tools this script runs itself; a missing one fails every mode.
-verifier_tools=(bash cmp diff fastfetch find git jq luac python3 readlink realpath stat)
+verifier_tools=(bash cmp diff env fastfetch find git jq luac python3 readlink realpath stat)
 [[ -n ${VERIFY_EXTRA_REQUIRED_TOOL:-} ]] && verifier_tools+=("$VERIFY_EXTRA_REQUIRED_TOOL")
 for tool in "${verifier_tools[@]}"; do
   command -v "$tool" >/dev/null || {
@@ -161,7 +171,7 @@ if [[ $mode != repo ]]; then
   fi
 
   sources=()
-  mapfile -d '' -t visible_sources < <(git -C "$repo" ls-files -z --cached --others --exclude-standard -- "${packages[@]}")
+  mapfile -d '' -t visible_sources < <("${git_command[@]}" -C "$repo" ls-files -z --cached --others --exclude-standard -- "${packages[@]}")
   scan=$!; wait "$scan" || { problem "cannot enumerate package files"; exit 1; }
   for source in "${visible_sources[@]}"; do
     # Pending known deletions remain in the index before commit. Exempt only
@@ -201,9 +211,11 @@ if [[ $mode != repo ]]; then
   done < <(for source in "${sources[@]}"; do rel=${source#*/}
       while [[ $rel == */* ]]; do rel=${rel%/*}; printf '%s\n' "$rel"; done; done | sort -u)
 
-  # The values are never printed: the email must be a GitHub no-reply address.
-  name=$(HOME="$verify_home" git config --includes --file "$verify_home/.config/git/config" --get user.name 2>/dev/null || true)
-  email=$(HOME="$verify_home" git config --includes --file "$verify_home/.config/git/config" --get user.email 2>/dev/null || true)
+  # Check the same configuration chain ordinary Git uses in this repository,
+  # including legacy globals, conditional includes and repository/worktree
+  # overrides. Values never reach the output. Fixture globals stay in scratch.
+  name=$("${git_command[@]}" -C "$repo" config --includes --get user.name 2>/dev/null || true)
+  email=$("${git_command[@]}" -C "$repo" config --includes --get user.email 2>/dev/null || true)
   if [[ -n ${name//[[:space:]]/} && $email == *@users.noreply.github.com ]]; then
     ok "Git identity resolves to a name and a GitHub no-reply address"
   else
@@ -322,8 +334,7 @@ else
   problem "Fastfetch config failed runtime validation"
 fi
 
-if HOME="$verify_home" XDG_CONFIG_HOME="$verify_home/.config" \
-  git config --includes --file "$repo/git/.config/git/config" --list >/dev/null 2>&1; then
+if "${git_command[@]}" config --no-includes --file "$repo/git/.config/git/config" --list >/dev/null 2>&1; then
   ok "Git config parses"
 else
   problem "Git config failed to parse"
